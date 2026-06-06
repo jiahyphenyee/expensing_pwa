@@ -12,7 +12,7 @@ export default function LoginPage() {
   // If already logged in, skip to home
   useEffect(() => {
     if (getUser()) router.replace('/home');
-  }, []);
+  }, [router]);
 
   async function handleSubmit() {
     if (pin.length !== 4) return;

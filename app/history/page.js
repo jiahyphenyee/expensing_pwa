@@ -1,5 +1,7 @@
+// Expense history page - shows all submissions by the user, with status and details. 
+
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 
@@ -11,7 +13,6 @@ const STATUS_STYLE = {
 };
 
 export default function HistoryPage() {
-  // FIX 1: lazy useState — no setUser needed, no setState in effect
   const [user] = useState(() => {
     if (typeof window === 'undefined') return null;
     return getUser() ?? null;
@@ -22,26 +23,32 @@ export default function HistoryPage() {
   const [error, setError]       = useState('');
   const router = useRouter();
 
-  // FIX 2: useCallback declares fetchHistory BEFORE the useEffect that uses it,
-  //         eliminating the "accessed before declaration" hoisting error
-  const fetchHistory = useCallback(async (u) => {
-    try {
-      const res = await fetch(`/api/history?user=${encodeURIComponent(u.name)}&role=${u.role}`);
-      const data = await res.json();
-      setExpenses(data.expenses || []);
-    } catch {
-      setError('Could not load submissions. Check your connection.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // FIX 3: effect only handles side effects (redirect + fetch), not setState.
-  //         router and fetchHistory added to deps array.
+  // Auth redirect
   useEffect(() => {
-    if (!user) { router.replace('/'); return; }
-    fetchHistory(user);
-  }, [user, router, fetchHistory]);
+    if (!user) router.replace('/');
+  }, [user, router]);
+
+  // Data fetch — setState calls are inside async callback, not synchronously
+  // in the effect body, so the linter does not flag them
+  useEffect(() => {
+    if (!user) return;
+
+    async function load() {
+      try {
+        const res = await fetch(
+          `/api/history?user=${encodeURIComponent(user.name)}&role=${user.role}`
+        );
+        const data = await res.json();
+        setExpenses(data.expenses || []);
+      } catch {
+        setError('Could not load submissions. Check your connection.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [user]);
 
   return (
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
