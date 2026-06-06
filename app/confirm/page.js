@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 export default function ConfirmPage() {
   const router = useRouter();
 
-  const [expense, setExpense] = useState(null);
+  const [expense] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const data = sessionStorage.getItem('lastExpense');
+    return data ? JSON.parse(data) : null;
+  });
   const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'sharing' | 'done'
 
   useEffect(() => {
-    const data = sessionStorage.getItem('lastExpense');
-    if (!data) router.replace('/home');
-    else setExpense(JSON.parse(data));
-  }, [router]);
+    if (!expense) router.replace('/home');
+  }, [expense, router]);
 
   async function handleShare() {
     if (typeof navigator.share !== 'function') return;

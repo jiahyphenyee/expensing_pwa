@@ -34,10 +34,10 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    setError('');
 
     async function load() {
+      setLoading(true);
+      setError('');
       try {
         const res = await fetch(
           `/api/history?user=${encodeURIComponent(user.name)}&role=${user.role}&page=${page}`

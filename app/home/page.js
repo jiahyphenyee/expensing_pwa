@@ -6,14 +6,15 @@ import { useRouter } from 'next/navigation';
 import { getUser, clearUser } from '@/lib/session';
 
 export default function HomePage() {
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return getUser() ?? null;
+  });
   const router = useRouter();
 
   useEffect(() => {
-    const u = getUser();
-    if (!u) router.replace('/');
-    else setUser(u);
-  }, [router]);
+    if (!user) router.replace('/');
+  }, [user, router]);
 
   if (!user) return null;
 
