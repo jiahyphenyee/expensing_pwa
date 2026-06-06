@@ -6,6 +6,32 @@ import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT } from '@/lib/constants';
 
+async function compressImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1200;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', 0.7);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+function bufToBase64(buf) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
 // ── Field wrapper ─────────────────────────────────────────────────────────────
 function Field({ label, required, children, error }) {
   return (
@@ -446,8 +472,26 @@ export default function NewExpensePage() {
         projectAddress: form.projectAddress,
         payeeName:      form.payeeName,
         date:           form.date,
+        category:       form.category
+          ? (dropdowns?.activeCategories.find(c => c.code === form.category)?.name ?? '')
+          : '',
         xeroBillId,
       }));
+
+      // Store compressed receipt files for share sheet — best-effort, text-only share if quota exceeded
+      sessionStorage.removeItem('lastExpenseFiles');
+      try {
+        const stored = await Promise.all(files.map(async f => {
+          const blob = f.file.type.startsWith('image/')
+            ? await compressImage(f.file)
+            : f.file;
+          const buf = await blob.arrayBuffer();
+          return { name: f.name, type: blob.type || f.file.type, data: bufToBase64(buf) };
+        }));
+        sessionStorage.setItem('lastExpenseFiles', JSON.stringify(stored));
+      } catch {
+        // Quota exceeded or compression error — share will proceed text-only
+      }
 
       router.push('/confirm');
 
@@ -659,7 +703,6 @@ export default function NewExpensePage() {
             type="file"
             accept="image/*,application/pdf"
             multiple
-            capture="environment"
             onChange={handleFilePick}
             style={{ display: 'none' }}
           />

@@ -11,9 +11,66 @@ export default function ConfirmPage() {
     return data ? JSON.parse(data) : null;
   });
 
+  const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'sharing' | 'done'
+
   useEffect(() => {
     if (!expense) router.replace('/home');
   }, [expense, router]);
+
+  async function handleShare() {
+    if (typeof navigator.share !== 'function') return;
+    setShareStatus('sharing');
+
+    const lines = [
+      'Expense submitted',
+      `ID: ${expense.expenseId}`,
+      `Amount: $${parseFloat(expense.amount).toFixed(2)}`,
+      `Project: ${expense.projectAddress}`,
+      `Payee: ${expense.payeeName}`,
+      `Date: ${expense.date}`,
+      expense.category ? `Category: ${expense.category}` : null,
+      'Status: Pending admin review',
+      'Xero Bill Ref: ' + (expense.xeroBillId
+        ? `Draft bill created (${expense.xeroBillId.slice(0, 8)}…)`
+        : 'Xero sync failed.'),
+    ].filter(Boolean);
+    const text = lines.join('\n');
+    const shareData = { text };
+
+    // Build files array: .txt summary first (received by AirDrop), then receipt images.
+    // AirDrop ignores the `text` field and only passes files, so the .txt ensures
+    // the summary always arrives regardless of share target.
+    try {
+      const textFile = new File(
+        [new Blob([text], { type: 'text/plain' })],
+        `${expense.date}_${expense.expenseId}.txt`,
+        { type: 'text/plain' },
+      );
+      const allFiles = [textFile];
+
+      const raw = sessionStorage.getItem('lastExpenseFiles');
+      if (raw) {
+        JSON.parse(raw).forEach(f => {
+          const bytes = Uint8Array.from(atob(f.data), c => c.charCodeAt(0));
+          allFiles.push(new File([bytes], f.name, { type: f.type }));
+        });
+      }
+
+      if (navigator.canShare?.({ files: allFiles })) {
+        shareData.files = allFiles;
+      }
+    } catch {
+      // Fall back to text-only share
+    }
+
+    try {
+      await navigator.share(shareData);
+      setShareStatus('done');
+    } catch (err) {
+      if (err.name !== 'AbortError') setShareStatus('done');
+      else setShareStatus('idle');
+    }
+  }
 
   if (!expense) return null;
 
@@ -55,7 +112,7 @@ export default function ConfirmPage() {
           ['Payee',       expense.payeeName],
           ['Date',        expense.date],
           ['Status',      'Pending admin review'],
-          ['Xero',        expense.xeroBillId
+          ['Xero Bill Ref',        expense.xeroBillId
                             ? `Draft bill created (${expense.xeroBillId.slice(0, 8)}…)`
                             : '⚠ Xero sync failed — admin will push manually'],
         ].map(([label, value]) => (
@@ -79,6 +136,20 @@ export default function ConfirmPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 320 }}>
+        {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+          <button
+            onClick={handleShare}
+            disabled={shareStatus === 'sharing'}
+            style={{
+              background: '#25D366', color: '#fff',
+              border: 'none', borderRadius: 12,
+              padding: '14px', fontSize: 15, fontWeight: 500,
+              cursor: shareStatus === 'sharing' ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {shareStatus === 'sharing' ? 'Opening share sheet…' : 'Share to'}
+          </button>
+        )}
         <button
           onClick={() => router.push('/new')}
           style={{
