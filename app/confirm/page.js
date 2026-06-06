@@ -3,14 +3,17 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ConfirmPage() {
-  const [expense, setExpense] = useState(null);
   const router = useRouter();
 
-  useEffect(() => {
+  const [expense] = useState(() => {
+    if (typeof window === 'undefined') return null; // SSR guard
     const data = sessionStorage.getItem('lastExpense');
-    if (!data) { router.replace('/home'); return; }
-    setExpense(JSON.parse(data));
-  }, []);
+    return data ? JSON.parse(data) : null;
+  });
+
+  useEffect(() => {
+    if (!expense) router.replace('/home');
+  }, [expense, router]);
 
   if (!expense) return null;
 

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 
@@ -11,29 +11,37 @@ const STATUS_STYLE = {
 };
 
 export default function HistoryPage() {
-  const [user, setUser]         = useState(null);
+  // FIX 1: lazy useState — no setUser needed, no setState in effect
+  const [user] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return getUser() ?? null;
+  });
+
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
   const router = useRouter();
 
-  useEffect(() => {
-    const u = getUser();
-    if (!u) { router.replace('/'); return; }
-    setUser(u);
-    fetchHistory(u);
-  }, []);
-
-  async function fetchHistory(u) {
+  // FIX 2: useCallback declares fetchHistory BEFORE the useEffect that uses it,
+  //         eliminating the "accessed before declaration" hoisting error
+  const fetchHistory = useCallback(async (u) => {
     try {
       const res = await fetch(`/api/history?user=${encodeURIComponent(u.name)}&role=${u.role}`);
       const data = await res.json();
       setExpenses(data.expenses || []);
     } catch {
       setError('Could not load submissions. Check your connection.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  }, []);
+
+  // FIX 3: effect only handles side effects (redirect + fetch), not setState.
+  //         router and fetchHistory added to deps array.
+  useEffect(() => {
+    if (!user) { router.replace('/'); return; }
+    fetchHistory(user);
+  }, [user, router, fetchHistory]);
 
   return (
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>

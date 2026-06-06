@@ -1,7 +1,7 @@
 // Screen 3: Expense form + receipt upload
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT } from '@/lib/constants';
@@ -111,7 +111,8 @@ function SearchableDropdown({
                 padding: '12px 14px', fontSize: 13,
                 color: '#999', fontStyle: 'italic',
               }}>
-                No results for "{query}"
+                {/* FIX: unescaped quotes replaced with curly-brace expressions */}
+                No results for {'"'}{query}{'"'}
               </div>
             ) : (
               filtered.map((opt, i) => (
@@ -225,7 +226,7 @@ function SearchableDropdownWithFreetext({
               </div>
             ))}
 
-            {/* Freetext option */}
+            {/* FIX: unescaped quotes replaced with curly-brace expressions */}
             {query.trim() &&
               !options.find(
                 o => renderOption(o).toLowerCase() === query.toLowerCase()
@@ -244,7 +245,7 @@ function SearchableDropdownWithFreetext({
                 onMouseEnter={e => e.currentTarget.style.background = '#f0f4f8'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                ＋ {freetextLabel} "{query.trim()}"
+                ＋ {freetextLabel} {'"'}{query.trim()}{'"'}
               </div>
             )}
 
@@ -268,7 +269,12 @@ export default function NewExpensePage() {
   const router       = useRouter();
   const fileInputRef = useRef();
 
-  const [user, setUser]                         = useState(null);
+  // FIX 1: lazy useState initializer — reads user from session once, no setState in effect
+  const [user] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return getUser() ?? null;
+  });
+
   const [dropdowns, setDropdowns]               = useState(null);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
   const [submitting, setSubmitting]             = useState(false);
@@ -293,16 +299,22 @@ export default function NewExpensePage() {
   const [files, setFiles] = useState([]);
   // Each file: { id, file, name, status: 'ready' }
 
-  // ── Load user + dropdowns ──────────────────────────────────────────────────
+  // ── Auth redirect ──────────────────────────────────────────────────────────
+  // FIX 2: useEffect now only handles the side effect (redirect), not setState.
+  //         router added to deps to satisfy exhaustive-deps warning.
   useEffect(() => {
-    const u = getUser();
-    if (!u) { router.replace('/'); return; }
-    setUser(u);
+    if (!user) router.replace('/');
+  }, [user, router]);
+
+  // ── Load dropdowns ─────────────────────────────────────────────────────────
+  // FIX 3: Separated from auth effect. Gated on user so it only runs when authed.
+  useEffect(() => {
+    if (!user) return;
     fetch('/api/dropdowns')
       .then(r => r.json())
       .then(data => { setDropdowns(data); setLoadingDropdowns(false); })
       .catch(() => setLoadingDropdowns(false));
-  }, []);
+  }, [user]);
 
   // ── Field helpers ──────────────────────────────────────────────────────────
   function setField(key, value) {
@@ -328,13 +340,10 @@ export default function NewExpensePage() {
   }
 
   function handlePayeeSelect(payee) {
-    // Strip the type label from display name before storing
-    // e.g. "Name (Worker)" → "Name"
-    //      "ABC Hardware (Company Name)" → "ABC Hardware (Company Name)" — contacts keep full name
     setField('payeeId',   payee.type === 'freetext' ? '' : payee.id);
-    setField('payeeName', payee.name);        // clean name — stored in Sheets + sent to Xero
+    setField('payeeName', payee.name);
     setField('payeeType', payee.type);
-    setField('payeeDisplayName', payee.displayName || payee.name); // shown in form
+    setField('payeeDisplayName', payee.displayName || payee.name);
   }
 
   function handleCategorySelect(cat) {
@@ -378,7 +387,6 @@ export default function NewExpensePage() {
     setSubmitting(true);
 
     try {
-      // Step 1: Submit form data → creates Sheets row + Xero draft bill
       const submitRes = await fetch('/api/submit', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -398,7 +406,6 @@ export default function NewExpensePage() {
 
       const { expenseId, xeroBillId } = submitData;
 
-      // Step 2: Attach each file to the Xero bill one by one
       const progress = files.map(f => ({ name: f.name, status: 'pending' }));
       setAttachProgress(progress);
 
@@ -433,7 +440,6 @@ export default function NewExpensePage() {
         }
       }
 
-      // Step 3: Navigate to confirmation
       sessionStorage.setItem('lastExpense', JSON.stringify({
         expenseId,
         amount:         form.amount,
@@ -452,8 +458,8 @@ export default function NewExpensePage() {
     setSubmitting(false);
   }
 
-  // ── Loading state ──────────────────────────────────────────────────────────
-  if (loadingDropdowns) return (
+  // ── Loading / auth guard ───────────────────────────────────────────────────
+  if (!user || loadingDropdowns) return (
     <main style={{
       minHeight: '100svh', display: 'flex',
       alignItems: 'center', justifyContent: 'center',
@@ -602,7 +608,6 @@ export default function NewExpensePage() {
         {/* Receipts */}
         <Field label="Receipts" required error={errors.files}>
 
-          {/* File list */}
           {files.length > 0 && (
             <div style={{
               marginBottom: 10,
@@ -634,7 +639,6 @@ export default function NewExpensePage() {
             </div>
           )}
 
-          {/* Add receipt button */}
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
@@ -650,7 +654,6 @@ export default function NewExpensePage() {
             <span style={{ fontSize: 18 }}>📎</span> Add receipt
           </button>
 
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -662,7 +665,7 @@ export default function NewExpensePage() {
           />
         </Field>
 
-        {/* Attachment progress — shown after submit while files are attaching */}
+        {/* Attachment progress */}
         {attachProgress.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <p style={{
