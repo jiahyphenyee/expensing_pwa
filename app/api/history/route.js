@@ -2,12 +2,16 @@
 
 import { getGoogleAuth } from '@/lib/google';
 import { google } from 'googleapis';
+import { ADMIN_ROLES } from '@/lib/constants';
+
+const PAGE_SIZE = 20;
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const user = searchParams.get('user');
     const role = searchParams.get('role');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
 
     const auth = await getGoogleAuth().getClient();
     const sheets = google.sheets({ version: 'v4', auth });
@@ -19,30 +23,33 @@ export async function GET(req) {
 
     const rows = (res.data.values || []).slice(1); // skip header
 
-    // Admin sees all, senior worker sees own only
-    const filtered = role === 'admin'
+    // Admin roles see all; everyone else sees their own only
+    const isAdmin = ADMIN_ROLES.includes(role);
+    const filtered = isAdmin
       ? rows
       : rows.filter(row => row[11] === user); // col L = submitted_by
 
-    // Map to objects, newest first
-    const expenses = filtered
-      .reverse()
-      .map(row => ({
-        expenseId:      row[0]  || '',
-        date:           row[1]  || '',
-        projectCode:    row[2]  || '',
-        displayAddress: row[3]  || '',
-        category:       row[4]  || '',
-        description:    row[5]  || '',
-        amount:         row[6]  || '0',
-        payeeId:        row[7]  || '',
-        payeeName:      row[8]  || '',
-        receiptUrls:    row[10] || '',
-        submittedBy:    row[11] || '',
-        status:         row[12] || 'pending', // admin_status column
-      }));
+    // Newest first, then paginate
+    const reversed = [...filtered].reverse();
+    const total = reversed.length;
+    const paged = reversed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-    return Response.json({ expenses });
+    const expenses = paged.map(row => ({
+      expenseId:      row[0]  || '',
+      date:           row[1]  || '',
+      projectCode:    row[2]  || '',
+      displayAddress: row[3]  || '',
+      category:       row[4]  || '',
+      description:    row[5]  || '',
+      amount:         row[6]  || '0',
+      payeeId:        row[7]  || '',
+      payeeName:      row[8]  || '',
+      receiptUrls:    row[10] || '',
+      submittedBy:    row[11] || '',
+      status:         row[12] || 'pending', // admin_status column
+    }));
+
+    return Response.json({ expenses, total, page, pageSize: PAGE_SIZE });
 
   } catch (err) {
     console.error('History error:', err);

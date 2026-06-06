@@ -5,17 +5,14 @@ import { useRouter } from 'next/navigation';
 export default function ConfirmPage() {
   const router = useRouter();
 
-  const [expense] = useState(() => {
-    if (typeof window === 'undefined') return null; // SSR guard
-    const data = sessionStorage.getItem('lastExpense');
-    return data ? JSON.parse(data) : null;
-  });
-
+  const [expense, setExpense] = useState(null);
   const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'sharing' | 'done'
 
   useEffect(() => {
-    if (!expense) router.replace('/home');
-  }, [expense, router]);
+    const data = sessionStorage.getItem('lastExpense');
+    if (!data) router.replace('/home');
+    else setExpense(JSON.parse(data));
+  }, [router]);
 
   async function handleShare() {
     if (typeof navigator.share !== 'function') return;
@@ -80,7 +77,16 @@ export default function ConfirmPage() {
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '2rem', textAlign: 'center',
+      position: 'relative',
     }}>
+      <button
+        onClick={() => router.push('/home')}
+        style={{
+          position: 'absolute', top: '1rem', right: '1rem',
+          background: 'none', border: 'none',
+          color: '#aaa', fontSize: 22, cursor: 'pointer', padding: 4,
+        }}
+      ><img src="/home.svg" alt="Home" style={{ width: 22, height: 22, display: 'block', filter: 'brightness(0) invert(0.67)' }} /></button>
       {/* Success icon */}
       <div style={{
         width: 72, height: 72, borderRadius: '50%',

@@ -1,4 +1,4 @@
-// Expense history page - shows all submissions by the user, with status and details. 
+// Expense history page - shows all submissions by the user, with status and details.
 
 'use client';
 import { useState, useEffect } from 'react';
@@ -12,6 +12,8 @@ const STATUS_STYLE = {
   synced:   { bg: '#d1ecf1', color: '#0c5460', label: 'Synced' },
 };
 
+const PAGE_SIZE = 20;
+
 export default function HistoryPage() {
   const [user] = useState(() => {
     if (typeof window === 'undefined') return null;
@@ -21,6 +23,8 @@ export default function HistoryPage() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
   const router = useRouter();
 
   // Auth redirect
@@ -28,18 +32,19 @@ export default function HistoryPage() {
     if (!user) router.replace('/');
   }, [user, router]);
 
-  // Data fetch — setState calls are inside async callback, not synchronously
-  // in the effect body, so the linter does not flag them
   useEffect(() => {
     if (!user) return;
+    setLoading(true);
+    setError('');
 
     async function load() {
       try {
         const res = await fetch(
-          `/api/history?user=${encodeURIComponent(user.name)}&role=${user.role}`
+          `/api/history?user=${encodeURIComponent(user.name)}&role=${user.role}&page=${page}`
         );
         const data = await res.json();
         setExpenses(data.expenses || []);
+        setTotal(data.total || 0);
       } catch {
         setError('Could not load submissions. Check your connection.');
       } finally {
@@ -48,7 +53,9 @@ export default function HistoryPage() {
     }
 
     load();
-  }, [user]);
+  }, [user, page]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
@@ -64,6 +71,12 @@ export default function HistoryPage() {
           ‹
         </button>
         <h1 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>My submissions</h1>
+        <button
+          onClick={() => router.push('/home')}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', padding: 0 }}
+        >
+          <img src="/home.svg" alt="Home" style={{ width: 22, height: 22, display: 'block', filter: 'invert(1)' }} />
+        </button>
       </div>
 
       <div style={{ padding: '1.5rem' }}>
@@ -112,6 +125,42 @@ export default function HistoryPage() {
             );
           })}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 16, marginTop: 20,
+          }}>
+            <button
+              onClick={() => setPage(p => p - 1)}
+              disabled={page === 1}
+              style={{
+                background: page === 1 ? '#eee' : '#1D5C8F',
+                color: page === 1 ? '#aaa' : '#fff',
+                border: 'none', borderRadius: 8,
+                padding: '8px 16px', fontSize: 14, cursor: page === 1 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              ‹ Prev
+            </button>
+            <span style={{ fontSize: 13, color: '#666' }}>
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= totalPages}
+              style={{
+                background: page >= totalPages ? '#eee' : '#1D5C8F',
+                color: page >= totalPages ? '#aaa' : '#fff',
+                border: 'none', borderRadius: 8,
+                padding: '8px 16px', fontSize: 14, cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
       </div>
     </main>
   );

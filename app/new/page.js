@@ -4,7 +4,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
-import { GENERAL_PROJECT, UNLINKED_PROJECT } from '@/lib/constants';
+import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
+
+function getInitialForm() {
+  return {
+    date:             new Date().toISOString().split('T')[0],
+    projectCode:      '',
+    projectAddress:   '',
+    amount:           '',
+    payeeDisplayName: DEFAULT_PAYEE.name ? DEFAULT_PAYEE.displayName : '',
+    payeeId:          DEFAULT_PAYEE.name ? DEFAULT_PAYEE.id : '',
+    payeeName:        DEFAULT_PAYEE.name ? DEFAULT_PAYEE.name : '',
+    payeeType:        DEFAULT_PAYEE.name ? DEFAULT_PAYEE.type : '',
+    category:         '',
+    description:      '',
+  };
+}
 
 async function compressImage(file) {
   return new Promise(resolve => {
@@ -307,20 +322,7 @@ export default function NewExpensePage() {
   const [attachProgress, setAttachProgress]     = useState([]);
   const [errors, setErrors]                     = useState({});
 
-  const today = new Date().toISOString().split('T')[0];
-
-  const [form, setForm] = useState({
-    date:             today,
-    projectCode:      '',
-    projectAddress:   '',
-    amount:           '',
-    payeeDisplayName: '',
-    payeeId:          '',
-    payeeName:        '',
-    payeeType:        '',
-    category:         '',
-    description:      '',
-  });
+  const [form, setForm] = useState(getInitialForm);
 
   const [files, setFiles] = useState([]);
   // Each file: { id, file, name, status: 'ready' }
@@ -531,6 +533,13 @@ export default function NewExpensePage() {
         <h1 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>
           New expense
         </h1>
+        <button
+          onClick={() => router.push('/home')}
+          style={{
+            marginLeft: 'auto', background: 'none', border: 'none',
+            color: '#fff', fontSize: 22, cursor: 'pointer', padding: 0,
+          }}
+        ><img src="/home.svg" alt="Home" style={{ width: 22, height: 22, display: 'block', filter: 'invert(1)' }} /></button>
       </div>
 
       <div style={{ padding: '1.5rem' }}>
@@ -785,6 +794,20 @@ export default function NewExpensePage() {
               : 'Submitting…'
             : 'Submit claim'
           }
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setForm(getInitialForm()); setFiles([]); setErrors({}); setAttachProgress([]); }}
+          disabled={submitting}
+          style={{
+            width: '100%', marginTop: 10,
+            background: 'none', color: '#999',
+            border: '1px solid #ddd', borderRadius: 12,
+            padding: '13px', fontSize: 14, cursor: submitting ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Reset form
         </button>
 
       </div>
