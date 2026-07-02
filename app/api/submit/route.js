@@ -23,7 +23,7 @@ export async function POST(req) {
       range: 'Expenses!A:A',
     });
     const rowCount  = (existing.data.values || []).length;
-    const expenseId = `EXP-${String(rowCount).padStart(3, '0')}`;
+    const expenseId = `EXP-${String(rowCount).padStart(3, '0')}-${Date.now().toString().slice(-4)}`; // e.g. EXP-005-1234
 
     // ── 2. Get category name ────────────────────────────────────────────────
     const categoriesRes = await sheets.spreadsheets.values.get({
