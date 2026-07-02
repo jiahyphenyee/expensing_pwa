@@ -397,7 +397,8 @@ export default function NewExpensePage() {
 
   // Revoke all blob URLs on unmount
   useEffect(() => {
-    return () => objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    const urls = objectUrlsRef.current;
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, []);
 
   // ── Validation ─────────────────────────────────────────────────────────────
@@ -536,6 +537,7 @@ export default function NewExpensePage() {
         >
           <img
             src={previewImg}
+            alt="Receipt preview"
             style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           />
           <button
@@ -707,6 +709,7 @@ export default function NewExpensePage() {
                   {f.previewUrl ? (
                     <img
                       src={f.previewUrl}
+                      alt="Receipt thumbnail"
                       onClick={() => setPreviewImg(f.previewUrl)}
                       style={{
                         width: 48, height: 48, objectFit: 'cover',
