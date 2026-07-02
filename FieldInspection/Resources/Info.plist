@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>Field Inspection</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.yourcompany.fieldinspection</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>MinimumOSVersion</key>
+    <string>16.0</string>
+    <key>UILaunchScreen</key>
+    <dict/>
+
+    <!-- Permissions -->
+    <key>NSCameraUsageDescription</key>
+    <string>To photograph field conditions</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>To attach existing photos to inspections</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>For voice note dictation</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>To transcribe voice notes</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>To show your position on the field map</string>
+
+    <!-- Background Tasks -->
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.app.sync</string>
+        <string>com.app.sync.refresh</string>
+    </array>
+
+    <!-- Background Modes -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+
+    <!-- API Key (set via .xcconfig) -->
+    <key>ANTHROPIC_API_KEY</key>
+    <string>$(ANTHROPIC_API_KEY)</string>
+</dict>
+</plist>
