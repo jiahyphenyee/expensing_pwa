@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
+import PdfViewer from '@/app/components/PdfViewer';
 
 // ── File type helpers ─────────────────────────────────────────────────────────
 const ACCEPTED_RECEIPT_TYPES = 'image/*,application/pdf';
@@ -543,11 +544,7 @@ export default function NewExpensePage() {
           }}
         >
           {isPdf(preview.type) ? (
-            <iframe
-              src={preview.url}
-              title="Receipt PDF"
-              style={{ width: '100%', height: '100%', border: 'none' }}
-            />
+            <PdfViewer url={preview.url} />
           ) : (
             <img
               src={preview.url}
