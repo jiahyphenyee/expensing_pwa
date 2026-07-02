@@ -306,7 +306,8 @@ function SearchableDropdownWithFreetext({
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function NewExpensePage() {
   const router       = useRouter();
-  const fileInputRef = useRef();
+  const fileInputRef  = useRef();
+  const objectUrlsRef = useRef([]);
 
   // FIX 1: lazy useState initializer — reads user from session once, no setState in effect
   const [user] = useState(() => {
@@ -322,8 +323,9 @@ export default function NewExpensePage() {
 
   const [form, setForm] = useState(getInitialForm);
 
-  const [files, setFiles] = useState([]);
-  // Each file: { id, file, name, status: 'ready' }
+  const [files, setFiles]       = useState([]);
+  const [previewImg, setPreviewImg] = useState(null);
+  // Each file: { id, file, name, status: 'ready', previewUrl: string|null }
 
   // ── Auth redirect ──────────────────────────────────────────────────────────
   // FIX 2: useEffect now only handles the side effect (redirect), not setState.
@@ -378,12 +380,13 @@ export default function NewExpensePage() {
 
   function handleFilePick(e) {
     const picked   = Array.from(e.target.files);
-    const newFiles = picked.map(file => ({
-      id:     `${Date.now()}_${Math.random()}`,
-      file,
-      name:   file.name,
-      status: 'ready',
-    }));
+    const newFiles = picked.map(file => {
+      const previewUrl = file.type.startsWith('image/')
+        ? URL.createObjectURL(file)
+        : null;
+      if (previewUrl) objectUrlsRef.current.push(previewUrl);
+      return { id: `${Date.now()}_${Math.random()}`, file, name: file.name, status: 'ready', previewUrl };
+    });
     setFiles(prev => [...prev, ...newFiles]);
     e.target.value = '';
   }
@@ -391,6 +394,11 @@ export default function NewExpensePage() {
   function removeFile(id) {
     setFiles(prev => prev.filter(f => f.id !== id));
   }
+
+  // Revoke all blob URLs on unmount
+  useEffect(() => {
+    return () => objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+  }, []);
 
   // ── Validation ─────────────────────────────────────────────────────────────
   function validate() {
@@ -515,6 +523,32 @@ export default function NewExpensePage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
+
+      {/* Receipt preview modal */}
+      {previewImg && (
+        <div
+          onClick={() => setPreviewImg(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.93)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <img
+            src={previewImg}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+          />
+          <button
+            onClick={() => setPreviewImg(null)}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              background: 'rgba(255,255,255,0.15)', border: 'none',
+              color: '#fff', fontSize: 22, width: 40, height: 40,
+              borderRadius: '50%', cursor: 'pointer', lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{
@@ -670,7 +704,18 @@ export default function NewExpensePage() {
                   background: '#fff', border: '0.5px solid #ddd',
                   borderRadius: 8, padding: '8px 12px',
                 }}>
-                  <span style={{ fontSize: 18 }}>📄</span>
+                  {f.previewUrl ? (
+                    <img
+                      src={f.previewUrl}
+                      onClick={() => setPreviewImg(f.previewUrl)}
+                      style={{
+                        width: 48, height: 48, objectFit: 'cover',
+                        borderRadius: 6, flexShrink: 0, cursor: 'zoom-in',
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 18 }}>📄</span>
+                  )}
                   <span style={{
                     flex: 1, fontSize: 13, color: '#333',
                     overflow: 'hidden', textOverflow: 'ellipsis',
