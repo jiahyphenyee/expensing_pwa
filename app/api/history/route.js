@@ -14,8 +14,6 @@ export async function GET(req) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const q = (searchParams.get('q') || '').trim().toLowerCase();
     const amountFilter = (searchParams.get('amount') || '').trim();
-    const q = (searchParams.get('q') || '').trim().toLowerCase();
-    const amountFilter = (searchParams.get('amount') || '').trim();
 
     const auth = await getGoogleAuth().getClient();
     const sheets = google.sheets({ version: 'v4', auth });
