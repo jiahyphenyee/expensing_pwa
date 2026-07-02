@@ -5,7 +5,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
-import PdfViewer from '@/app/components/PdfViewer';
+import dynamic from 'next/dynamic';
+
+const PdfViewer = dynamic(() => import('@/app/components/PdfViewer'), { ssr: false });
 
 // ── File type helpers ─────────────────────────────────────────────────────────
 const ACCEPTED_RECEIPT_TYPES = 'image/*,application/pdf';

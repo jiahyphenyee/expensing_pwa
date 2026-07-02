@@ -1,5 +1,11 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import * as pdfjs from 'pdfjs-dist';
+
+// Set once at module load (browser only — this file is never SSR'd)
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+}
 
 const zoomBtnStyle = {
   fontSize: 20, fontWeight: 300, color: '#fff',
@@ -14,28 +20,31 @@ function pinchDist(touches) {
 }
 
 export default function PdfViewer({ url }) {
-  const scrollRef = useRef(); // outer scrollable container
-  const pagesRef  = useRef(); // inner div — transform target during pinch
+  const scrollRef = useRef();
+  const pagesRef  = useRef();
   const pdfDocRef = useRef(null);
   const pinchRef  = useRef({ active: false, startDist: 0, scale: 1, originX: 0, originY: 0 });
 
   const [zoom, setZoom]         = useState(1);
   const [numPages, setNumPages] = useState(null);
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
 
   // Load PDF document once
   useEffect(() => {
     let cancelled = false;
     let loadingTask = null;
     (async () => {
-      const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
-      GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-      loadingTask = getDocument(url);
-      const doc = await loadingTask.promise;
-      if (cancelled) { doc.destroy(); return; }
-      pdfDocRef.current = doc;
-      setNumPages(doc.numPages);
-      setLoading(false);
+      try {
+        loadingTask = pdfjs.getDocument(url);
+        const doc = await loadingTask.promise;
+        if (cancelled) { doc.destroy(); return; }
+        pdfDocRef.current = doc;
+        setNumPages(doc.numPages);
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled) setError('Could not load PDF — ' + err.message);
+      }
     })();
     return () => { cancelled = true; loadingTask?.destroy(); };
   }, [url]);
@@ -48,33 +57,36 @@ export default function PdfViewer({ url }) {
     if (!doc || !pages || !scroll || loading) return;
 
     let cancelled = false;
-    // Remember scroll position as a ratio so we can restore after re-render
     const scrollRatio = scroll.scrollTop / (scroll.scrollHeight || 1);
 
     (async () => {
-      pages.innerHTML = '';
-      const dpr   = window.devicePixelRatio || 1;
-      const width = scroll.clientWidth;
+      try {
+        pages.innerHTML = '';
+        const dpr   = window.devicePixelRatio || 1;
+        const width = scroll.clientWidth;
 
-      for (let n = 1; n <= doc.numPages; n++) {
-        if (cancelled) break;
-        const page   = await doc.getPage(n);
-        const baseVp = page.getViewport({ scale: 1 });
-        const scale  = (width / baseVp.width) * zoom * dpr;
-        const vp     = page.getViewport({ scale });
+        for (let n = 1; n <= doc.numPages; n++) {
+          if (cancelled) break;
+          const page   = await doc.getPage(n);
+          const baseVp = page.getViewport({ scale: 1 });
+          const scale  = (width / baseVp.width) * zoom * dpr;
+          const vp     = page.getViewport({ scale });
 
-        const canvas  = document.createElement('canvas');
-        canvas.width  = vp.width;
-        canvas.height = vp.height;
-        canvas.style.cssText = `
-          width:${vp.width / dpr}px; height:${vp.height / dpr}px;
-          display:block; margin-bottom:6px; border-radius:3px;
-        `;
-        pages.appendChild(canvas);
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+          const canvas  = document.createElement('canvas');
+          canvas.width  = vp.width;
+          canvas.height = vp.height;
+          canvas.style.cssText = `
+            width:${vp.width / dpr}px; height:${vp.height / dpr}px;
+            display:block; margin-bottom:6px; border-radius:3px;
+          `;
+          pages.appendChild(canvas);
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        }
+
+        if (!cancelled) scroll.scrollTop = scrollRatio * scroll.scrollHeight;
+      } catch (err) {
+        if (!cancelled) setError('Render error — ' + err.message);
       }
-
-      if (!cancelled) scroll.scrollTop = scrollRatio * scroll.scrollHeight;
     })();
     return () => { cancelled = true; };
   }, [loading, zoom]);
@@ -94,11 +106,9 @@ export default function PdfViewer({ url }) {
       const midX  = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const midY  = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       pinchRef.current = {
-        active:    true,
-        startDist: pinchDist(e.touches),
-        scale:     1,
-        originX:   midX - rect.left,
-        originY:   midY - rect.top + el.scrollTop,
+        active: true, startDist: pinchDist(e.touches), scale: 1,
+        originX: midX - rect.left,
+        originY: midY - rect.top + el.scrollTop,
       };
     }
 
@@ -134,6 +144,12 @@ export default function PdfViewer({ url }) {
 
   const changeZoom = d => setZoom(z => parseFloat(Math.max(0.5, Math.min(3, z + d)).toFixed(2)));
 
+  if (error) return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <span style={{ color: '#f87171', fontSize: 13, textAlign: 'center' }}>{error}</span>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Toolbar */}
@@ -159,7 +175,6 @@ export default function PdfViewer({ url }) {
         </div>
       )}
 
-      {/* Scroll container → inner pages div is the transform target */}
       <div
         ref={scrollRef}
         style={{
