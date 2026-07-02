@@ -12,6 +12,10 @@ export async function GET(req) {
     const user = searchParams.get('user');
     const role = searchParams.get('role');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const q = (searchParams.get('q') || '').trim().toLowerCase();
+    const amountFilter = (searchParams.get('amount') || '').trim();
+    const q = (searchParams.get('q') || '').trim().toLowerCase();
+    const amountFilter = (searchParams.get('amount') || '').trim();
 
     const auth = await getGoogleAuth().getClient();
     const sheets = google.sheets({ version: 'v4', auth });
@@ -29,8 +33,22 @@ export async function GET(req) {
       ? rows
       : rows.filter(row => row[11] === user); // col L = submitted_by
 
+    // Apply text search on displayAddress
+    let searched = filtered;
+    if (q) {
+      searched = searched.filter(row => (row[3] || '').toLowerCase().includes(q));
+    }
+
+    // Apply amount filter (exact match to 2 dp)
+    if (amountFilter) {
+      const target = parseFloat(amountFilter);
+      if (!isNaN(target)) {
+        searched = searched.filter(row => Math.abs(parseFloat(row[6] || 0) - target) < 0.005);
+      }
+    }
+
     // Newest first, then paginate
-    const reversed = [...filtered].reverse();
+    const reversed = [...searched].reverse();
     const total = reversed.length;
     const paged = reversed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 

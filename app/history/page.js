@@ -25,12 +25,36 @@ export default function HistoryPage() {
   const [error, setError]       = useState('');
   const [page, setPage]         = useState(1);
   const [total, setTotal]       = useState(0);
+
+  const [addressQuery, setAddressQuery]   = useState('');
+  const [amountQuery, setAmountQuery]     = useState('');
+  const [debouncedAddress, setDebouncedAddress] = useState('');
+  const [debouncedAmount, setDebouncedAmount]   = useState('');
+
   const router = useRouter();
 
   // Auth redirect
   useEffect(() => {
     if (!user) router.replace('/');
   }, [user, router]);
+
+  // Debounce address search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      setDebouncedAddress(addressQuery);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [addressQuery]);
+
+  // Debounce amount search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      setDebouncedAmount(amountQuery);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [amountQuery]);
 
   useEffect(() => {
     if (!user) return;
@@ -39,9 +63,15 @@ export default function HistoryPage() {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(
-          `/api/history?user=${encodeURIComponent(user.name)}&role=${user.role}&page=${page}`
-        );
+        const params = new URLSearchParams({
+          user: user.name,
+          role: user.role,
+          page,
+        });
+        if (debouncedAddress) params.set('q', debouncedAddress);
+        if (debouncedAmount)  params.set('amount', debouncedAmount);
+
+        const res = await fetch(`/api/history?${params}`);
         const data = await res.json();
         setExpenses(data.expenses || []);
         setTotal(data.total || 0);
@@ -53,9 +83,10 @@ export default function HistoryPage() {
     }
 
     load();
-  }, [user, page]);
+  }, [user, page, debouncedAddress, debouncedAmount]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+  const isFiltered = debouncedAddress || debouncedAmount;
 
   return (
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
@@ -80,13 +111,53 @@ export default function HistoryPage() {
       </div>
 
       <div style={{ padding: '1.5rem' }}>
+        {/* Search */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: '1.25rem' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#888', marginBottom: 4 }}>
+              Project / Address
+            </label>
+            <input
+              type="search"
+              value={addressQuery}
+              onChange={e => setAddressQuery(e.target.value)}
+              placeholder="Search…"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '9px 12px', fontSize: 14,
+                border: '1px solid #ddd', borderRadius: 10,
+                background: '#fff', outline: 'none',
+              }}
+            />
+          </div>
+          <div style={{ width: 110 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#888', marginBottom: 4 }}>
+              Amount ($)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amountQuery}
+              onChange={e => setAmountQuery(e.target.value)}
+              placeholder="e.g. 50"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '9px 12px', fontSize: 14,
+                border: '1px solid #ddd', borderRadius: 10,
+                background: '#fff', outline: 'none',
+              }}
+            />
+          </div>
+        </div>
+
         {loading && <p style={{ color: '#666', textAlign: 'center' }}>Loading…</p>}
         {error   && <p style={{ color: '#c0392b', textAlign: 'center' }}>{error}</p>}
 
         {!loading && expenses.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 0', color: '#999' }}>
             <p style={{ fontSize: 32, marginBottom: 8 }}>📭</p>
-            <p style={{ fontSize: 15 }}>No submissions yet</p>
+            <p style={{ fontSize: 15 }}>{isFiltered ? 'No matching submissions' : 'No submissions yet'}</p>
           </div>
         )}
 
@@ -117,6 +188,11 @@ export default function HistoryPage() {
                 <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
                   📍 {exp.displayAddress}
                 </div>
+                {exp.description && (
+                  <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
+                    {exp.description}
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
                   <span>{exp.payeeName}</span>
                   <span>{exp.date}</span>
