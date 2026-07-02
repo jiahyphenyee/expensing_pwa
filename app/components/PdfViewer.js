@@ -1,10 +1,14 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import * as pdfjs from 'pdfjs-dist';
 
-// Set once at module load (browser only — this file is never SSR'd)
-if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+// Loaded once on first open, never in Node.js (useEffect is browser-only)
+let pdfjsCache = null;
+async function loadPdfjs() {
+  if (!pdfjsCache) {
+    pdfjsCache = await import('pdfjs-dist');
+    pdfjsCache.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+  }
+  return pdfjsCache;
 }
 
 const zoomBtnStyle = {
@@ -36,6 +40,7 @@ export default function PdfViewer({ url }) {
     let loadingTask = null;
     (async () => {
       try {
+        const pdfjs = await loadPdfjs();
         loadingTask = pdfjs.getDocument({ url });
         const doc = await loadingTask.promise;
         if (cancelled) { doc.destroy(); return; }
@@ -151,7 +156,8 @@ export default function PdfViewer({ url }) {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    // flex: 1 + width: 100% lets the parent modal dictate the size
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', overflow: 'hidden' }}>
       {/* Toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,

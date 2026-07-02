@@ -542,7 +542,12 @@ export default function NewExpensePage() {
           style={{
             position: 'fixed', inset: 0, zIndex: 1000,
             background: 'rgba(0,0,0,0.93)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex',
+            // PDFs fill the viewport; images stay centred
+            ...(isPdf(preview.type)
+              ? { flexDirection: 'column' }
+              : { alignItems: 'center', justifyContent: 'center' }
+            ),
           }}
         >
           {isPdf(preview.type) ? (
