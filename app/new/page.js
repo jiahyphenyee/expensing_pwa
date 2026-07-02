@@ -6,16 +6,26 @@ import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
 
+// ── File type helpers ─────────────────────────────────────────────────────────
+const ACCEPTED_RECEIPT_TYPES = 'image/*,application/pdf';
+const isImage      = type => type.startsWith('image/');
+const isPdf        = type => type === 'application/pdf';
+const isPreviewable = type => isImage(type) || isPdf(type);
+
+// ── Shared hover handlers for dropdown list items ─────────────────────────────
+const hoverOn  = e => { e.currentTarget.style.background = '#f0f4f8'; };
+const hoverOff = e => { e.currentTarget.style.background = 'transparent'; };
+
 function getInitialForm() {
   return {
     date:             new Date().toISOString().split('T')[0],
     projectCode:      '',
     projectAddress:   '',
     amount:           '',
-    payeeDisplayName: DEFAULT_PAYEE.name ? DEFAULT_PAYEE.displayName : '',
-    payeeId:          DEFAULT_PAYEE.name ? DEFAULT_PAYEE.id : '',
-    payeeName:        DEFAULT_PAYEE.name ? DEFAULT_PAYEE.name : '',
-    payeeType:        DEFAULT_PAYEE.name ? DEFAULT_PAYEE.type : '',
+    payeeDisplayName: DEFAULT_PAYEE.displayName || '',
+    payeeId:          DEFAULT_PAYEE.id          || '',
+    payeeName:        DEFAULT_PAYEE.name        || '',
+    payeeType:        DEFAULT_PAYEE.type        || '',
     category:         '',
     description:      '',
   };
@@ -164,8 +174,8 @@ function SearchableDropdown({
                     borderBottom: i < filtered.length - 1
                       ? '0.5px solid #f5f5f5' : 'none',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f0f4f8'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onMouseEnter={hoverOn}
+                  onMouseLeave={hoverOff}
                 >
                   {renderOption(opt)}
                 </div>
@@ -258,8 +268,8 @@ function SearchableDropdownWithFreetext({
                   padding: '10px 14px', fontSize: 14, cursor: 'pointer',
                   borderBottom: '0.5px solid #f5f5f5',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#f0f4f8'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={hoverOn}
+                onMouseLeave={hoverOff}
               >
                 {renderOption(opt)}
               </div>
@@ -281,8 +291,8 @@ function SearchableDropdownWithFreetext({
                   borderTop: '0.5px solid #eee',
                   color: '#1D5C8F', fontWeight: 500,
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#f0f4f8'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={hoverOn}
+                onMouseLeave={hoverOff}
               >
                 ＋ {freetextLabel} {'"'}{query.trim()}{'"'}
               </div>
@@ -323,9 +333,9 @@ export default function NewExpensePage() {
 
   const [form, setForm] = useState(getInitialForm);
 
-  const [files, setFiles]       = useState([]);
-  const [previewImg, setPreviewImg] = useState(null);
-  // Each file: { id, file, name, status: 'ready', previewUrl: string|null }
+  const [files, setFiles] = useState([]);
+  const [preview, setPreview] = useState(null); // { url, type } | null
+  // Each file: { id, file, name, type, status: 'ready', previewUrl: string|null }
 
   // ── Auth redirect ──────────────────────────────────────────────────────────
   // FIX 2: useEffect now only handles the side effect (redirect), not setState.
@@ -381,11 +391,9 @@ export default function NewExpensePage() {
   function handleFilePick(e) {
     const picked   = Array.from(e.target.files);
     const newFiles = picked.map(file => {
-      const previewUrl = file.type.startsWith('image/')
-        ? URL.createObjectURL(file)
-        : null;
+      const previewUrl = isPreviewable(file.type) ? URL.createObjectURL(file) : null;
       if (previewUrl) objectUrlsRef.current.push(previewUrl);
-      return { id: `${Date.now()}_${Math.random()}`, file, name: file.name, status: 'ready', previewUrl };
+      return { id: `${Date.now()}_${Math.random()}`, file, name: file.name, type: file.type, status: 'ready', previewUrl };
     });
     setFiles(prev => [...prev, ...newFiles]);
     e.target.value = '';
@@ -491,7 +499,7 @@ export default function NewExpensePage() {
       sessionStorage.removeItem('lastExpenseFiles');
       try {
         const stored = await Promise.all(files.map(async f => {
-          const blob = f.file.type.startsWith('image/')
+          const blob = isImage(f.file.type)
             ? await compressImage(f.file)
             : f.file;
           const buf = await blob.arrayBuffer();
@@ -526,22 +534,30 @@ export default function NewExpensePage() {
     <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
 
       {/* Receipt preview modal */}
-      {previewImg && (
+      {preview && (
         <div
-          onClick={() => setPreviewImg(null)}
           style={{
             position: 'fixed', inset: 0, zIndex: 1000,
             background: 'rgba(0,0,0,0.93)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <img
-            src={previewImg}
-            alt="Receipt preview"
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-          />
+          {isPdf(preview.type) ? (
+            <iframe
+              src={preview.url}
+              title="Receipt PDF"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          ) : (
+            <img
+              src={preview.url}
+              alt="Receipt preview"
+              onClick={() => setPreview(null)}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            />
+          )}
           <button
-            onClick={() => setPreviewImg(null)}
+            onClick={() => setPreview(null)}
             style={{
               position: 'absolute', top: 16, right: 16,
               background: 'rgba(255,255,255,0.15)', border: 'none',
@@ -707,15 +723,29 @@ export default function NewExpensePage() {
                   borderRadius: 8, padding: '8px 12px',
                 }}>
                   {f.previewUrl ? (
-                    <img
-                      src={f.previewUrl}
-                      alt="Receipt thumbnail"
-                      onClick={() => setPreviewImg(f.previewUrl)}
-                      style={{
-                        width: 48, height: 48, objectFit: 'cover',
-                        borderRadius: 6, flexShrink: 0, cursor: 'zoom-in',
-                      }}
-                    />
+                    isPdf(f.type) ? (
+                      <div
+                        onClick={() => setPreview({ url: f.previewUrl, type: f.type })}
+                        style={{
+                          width: 48, height: 48, borderRadius: 6, flexShrink: 0,
+                          cursor: 'zoom-in', background: '#fee2e2',
+                          border: '1px solid #fca5a5',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>PDF</span>
+                      </div>
+                    ) : (
+                      <img
+                        src={f.previewUrl}
+                        alt="Receipt thumbnail"
+                        onClick={() => setPreview({ url: f.previewUrl, type: f.type })}
+                        style={{
+                          width: 48, height: 48, objectFit: 'cover',
+                          borderRadius: 6, flexShrink: 0, cursor: 'zoom-in',
+                        }}
+                      />
+                    )
                   ) : (
                     <span style={{ fontSize: 18 }}>📄</span>
                   )}
@@ -756,7 +786,7 @@ export default function NewExpensePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept={ACCEPTED_RECEIPT_TYPES}
             multiple
             onChange={handleFilePick}
             style={{ display: 'none' }}
