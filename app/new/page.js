@@ -1,7 +1,7 @@
 // Screen 3: Expense form + receipt upload
 
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
@@ -69,7 +69,7 @@ function Field({ label, required, children, error }) {
 }
 
 const inputStyle = {
-  width: '100%', fontSize: 15, padding: '11px 13px',
+  width: '100%', fontSize: 16, padding: '11px 13px',
   border: '1px solid #ddd', borderRadius: 10,
   background: '#fff', color: '#1a1a1a',
   boxSizing: 'border-box', appearance: 'none',
@@ -134,13 +134,12 @@ function SearchableDropdown({
         }}>
           <div style={{ padding: '8px 10px', borderBottom: '0.5px solid #eee' }}>
             <input
-              autoFocus
               type="text"
               placeholder="Search…"
               value={query}
               onChange={e => setQuery(e.target.value)}
               style={{
-                width: '100%', fontSize: 14, padding: '7px 10px',
+                width: '100%', fontSize: 16, padding: '7px 10px',
                 border: '1px solid #eee', borderRadius: 8,
                 background: '#f8f9fa', boxSizing: 'border-box', outline: 'none',
               }}
@@ -239,13 +238,12 @@ function SearchableDropdownWithFreetext({
         }}>
           <div style={{ padding: '8px 10px', borderBottom: '0.5px solid #eee' }}>
             <input
-              autoFocus
               type="text"
               placeholder="Search or type a name…"
               value={query}
               onChange={e => setQuery(e.target.value)}
               style={{
-                width: '100%', fontSize: 14, padding: '7px 10px',
+                width: '100%', fontSize: 16, padding: '7px 10px',
                 border: '1px solid #eee', borderRadius: 8,
                 background: '#f8f9fa', boxSizing: 'border-box', outline: 'none',
               }}

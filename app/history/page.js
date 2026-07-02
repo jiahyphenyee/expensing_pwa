@@ -124,7 +124,7 @@ export default function HistoryPage() {
               placeholder="Search…"
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '9px 12px', fontSize: 14,
+                padding: '9px 12px', fontSize: 16,
                 border: '1px solid #ddd', borderRadius: 10,
                 background: '#fff', outline: 'none',
               }}
@@ -143,7 +143,7 @@ export default function HistoryPage() {
               placeholder="e.g. 50"
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '9px 12px', fontSize: 14,
+                padding: '9px 12px', fontSize: 16,
                 border: '1px solid #ddd', borderRadius: 10,
                 background: '#fff', outline: 'none',
               }}
@@ -215,7 +215,7 @@ export default function HistoryPage() {
                 background: page === 1 ? '#eee' : '#1D5C8F',
                 color: page === 1 ? '#aaa' : '#fff',
                 border: 'none', borderRadius: 8,
-                padding: '8px 16px', fontSize: 14, cursor: page === 1 ? 'not-allowed' : 'pointer',
+                padding: '8px 16px', fontSize: 16, cursor: page === 1 ? 'not-allowed' : 'pointer',
               }}
             >
               ‹ Prev
@@ -230,7 +230,7 @@ export default function HistoryPage() {
                 background: page >= totalPages ? '#eee' : '#1D5C8F',
                 color: page >= totalPages ? '#aaa' : '#fff',
                 border: 'none', borderRadius: 8,
-                padding: '8px 16px', fontSize: 14, cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                padding: '8px 16px', fontSize: 16, cursor: page >= totalPages ? 'not-allowed' : 'pointer',
               }}
             >
               Next ›

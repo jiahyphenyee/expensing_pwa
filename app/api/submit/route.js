@@ -4,6 +4,12 @@ import { getGoogleAuth } from '@/lib/google';
 import { google } from 'googleapis';
 import { createXeroBill } from '@/lib/xero';
 
+// Prevent Sheets from interpreting user text as formulas when using USER_ENTERED
+function safe(val) {
+  if (typeof val === 'string' && /^[=+\-@|]/.test(val)) return `'${val}`;
+  return val ?? '';
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -60,12 +66,12 @@ export async function POST(req) {
       expenseId,
       date,
       projectCode,
-      projectAddress,
+      safe(projectAddress),
       category    || '',
-      description || '',
+      safe(description || ''),
       amount,
       payeeId     || '',
-      payeeName,
+      safe(payeeName),
       payeeType   || '',
       '',               // receipt_urls — filled after attachments
       submittedBy,
