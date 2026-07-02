@@ -36,7 +36,7 @@ export default function PdfViewer({ url }) {
     let loadingTask = null;
     (async () => {
       try {
-        loadingTask = pdfjs.getDocument(url);
+        loadingTask = pdfjs.getDocument({ url });
         const doc = await loadingTask.promise;
         if (cancelled) { doc.destroy(); return; }
         pdfDocRef.current = doc;
