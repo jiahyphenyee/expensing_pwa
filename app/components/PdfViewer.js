@@ -43,7 +43,7 @@ export default function PdfViewer({ url }) {
         const pdfjs = await loadPdfjs();
         loadingTask = pdfjs.getDocument({ url });
         const doc = await loadingTask.promise;
-        if (cancelled) { doc.destroy(); return; }
+        if (cancelled) { doc.cleanup(); return; }
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         setLoading(false);
@@ -96,8 +96,9 @@ export default function PdfViewer({ url }) {
     return () => { cancelled = true; };
   }, [loading, zoom]);
 
-  // Destroy doc on unmount
-  useEffect(() => () => { pdfDocRef.current?.destroy(); }, []);
+  // Cleanup doc on unmount — loadingTask.destroy() in the load effect already handles
+  // the worker/transport; cleanup() here releases canvas/font resources on the doc itself
+  useEffect(() => () => { pdfDocRef.current?.cleanup(); }, []);
 
   // Pinch-to-zoom: CSS transform during gesture → re-render on release
   useEffect(() => {
