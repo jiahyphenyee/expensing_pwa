@@ -611,107 +611,6 @@ export default function NewExpensePage() {
           />
         </Field>
 
-        {/* Project */}
-        <Field label="Project / site address" required error={errors.projectCode}>
-          <SearchableDropdownWithFreetext
-            options={projectOptions}
-            value={form.projectCode
-              ? { code: form.projectCode, address: form.projectAddress }
-              : null
-            }
-            placeholder="Search by address…"
-            onSelect={handleProjectSelect}
-            renderOption={p =>
-              p.code === GENERAL_PROJECT.code
-                ? `🗂 ${p.address}`
-                : `${p.address}${p.code ? ` (${p.code})` : ''}`
-            }
-            renderSelected={p =>
-              p.code === GENERAL_PROJECT.code
-                ? `🗂 ${p.address}`
-                : `${p.address}${p.code ? ` (${p.code})` : ''}`
-            }
-            freetextLabel="Use as project address:"
-          />
-          {form.projectCode === UNLINKED_PROJECT.code && (
-            <p style={{ fontSize: 12, color: '#e67e22', margin: '5px 0 0' }}>
-              ⚠ Project not in system yet — admin will link it after review
-            </p>
-          )}
-        </Field>
-
-        {/* Amount */}
-        <Field label="Amount (SGD)" required error={errors.amount}>
-          <div style={{ position: 'relative' }}>
-            <span style={{
-              position: 'absolute', left: 13, top: '50%',
-              transform: 'translateY(-50%)', color: '#999', fontSize: 15,
-            }}>$</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={form.amount}
-              onChange={e => setField('amount', e.target.value)}
-              style={{
-                ...inputStyle,
-                paddingLeft: 26,
-                borderColor: errors.amount ? '#c0392b' : '#ddd',
-              }}
-            />
-          </div>
-        </Field>
-
-        {/* Payee */}
-        <Field label="Payee (who was paid)" required error={errors.payeeId}>
-          <SearchableDropdownWithFreetext
-            options={dropdowns?.payees || []}
-            value={form.payeeName
-              ? { id: form.payeeId, name: form.payeeName, displayName: form.payeeDisplayName }
-              : null
-            }
-            placeholder="Search payee…"
-            onSelect={handlePayeeSelect}
-            renderOption={p => p.displayName || p.name}
-            renderSelected={p => p.displayName || p.name}
-            freetextLabel="Use as payee:"
-          />
-        </Field>
-
-        {/* Category */}
-        <Field label="Category" error={errors.category}>
-          <SearchableDropdown
-            options={dropdowns?.activeCategories || []}
-            value={form.category
-              ? {
-                  code: form.category,
-                  name: dropdowns?.activeCategories
-                    .find(c => c.code === form.category)?.name,
-                }
-              : null
-            }
-            placeholder="Search category… (optional)"
-            onSelect={handleCategorySelect}
-            renderOption={c => c.name}
-            renderSelected={c => c.name}
-          />
-        </Field>
-
-        {/* Description */}
-        <Field label="Description" error={errors.description}>
-          <textarea
-            placeholder={
-              form.projectCode === GENERAL_PROJECT.code
-                ? 'Project not listed — write the site address here e.g. 123 Orchard Road #05-01'
-                : 'e.g. Tiles from ABC Hardware'
-            }
-            value={form.description}
-            onChange={e => setField('description', e.target.value)}
-            rows={2}
-            style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 }}
-          />
-        </Field>
-
         {/* Receipts */}
         <Field label="Receipts" required error={errors.files}>
 
@@ -794,6 +693,107 @@ export default function NewExpensePage() {
             multiple
             onChange={handleFilePick}
             style={{ display: 'none' }}
+          />
+        </Field>
+
+        {/* Amount */}
+        <Field label="Amount (SGD)" required error={errors.amount}>
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 13, top: '50%',
+              transform: 'translateY(-50%)', color: '#999', fontSize: 15,
+            }}>$</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={form.amount}
+              onChange={e => setField('amount', e.target.value)}
+              style={{
+                ...inputStyle,
+                paddingLeft: 26,
+                borderColor: errors.amount ? '#c0392b' : '#ddd',
+              }}
+            />
+          </div>
+        </Field>
+
+        {/* Category */}
+        <Field label="Category" error={errors.category}>
+          <SearchableDropdown
+            options={dropdowns?.activeCategories || []}
+            value={form.category
+              ? {
+                  code: form.category,
+                  name: dropdowns?.activeCategories
+                    .find(c => c.code === form.category)?.name,
+                }
+              : null
+            }
+            placeholder="Search category… (optional)"
+            onSelect={handleCategorySelect}
+            renderOption={c => c.name}
+            renderSelected={c => c.name}
+          />
+        </Field>
+
+        {/* Description */}
+        <Field label="Description" error={errors.description}>
+          <textarea
+            placeholder={
+              form.projectCode === GENERAL_PROJECT.code
+                ? 'Project not listed — write the site address here e.g. 123 Orchard Road #05-01'
+                : 'e.g. Tiles from ABC Hardware'
+            }
+            value={form.description}
+            onChange={e => setField('description', e.target.value)}
+            rows={2}
+            style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 }}
+          />
+        </Field>
+
+        {/* Project */}
+        <Field label="Project / site address" required error={errors.projectCode}>
+          <SearchableDropdownWithFreetext
+            options={projectOptions}
+            value={form.projectCode
+              ? { code: form.projectCode, address: form.projectAddress }
+              : null
+            }
+            placeholder="Search by address…"
+            onSelect={handleProjectSelect}
+            renderOption={p =>
+              p.code === GENERAL_PROJECT.code
+                ? `🗂 ${p.address}`
+                : `${p.address}${p.code ? ` (${p.code})` : ''}`
+            }
+            renderSelected={p =>
+              p.code === GENERAL_PROJECT.code
+                ? `🗂 ${p.address}`
+                : `${p.address}${p.code ? ` (${p.code})` : ''}`
+            }
+            freetextLabel="Use as project address:"
+          />
+          {form.projectCode === UNLINKED_PROJECT.code && (
+            <p style={{ fontSize: 12, color: '#e67e22', margin: '5px 0 0' }}>
+              ⚠ Project not in system yet — admin will link it after review
+            </p>
+          )}
+        </Field>
+
+        {/* Payee */}
+        <Field label="Payee (who was paid)" required error={errors.payeeId}>
+          <SearchableDropdownWithFreetext
+            options={dropdowns?.payees || []}
+            value={form.payeeName
+              ? { id: form.payeeId, name: form.payeeName, displayName: form.payeeDisplayName }
+              : null
+            }
+            placeholder="Search payee…"
+            onSelect={handlePayeeSelect}
+            renderOption={p => p.displayName || p.name}
+            renderSelected={p => p.displayName || p.name}
+            freetextLabel="Use as payee:"
           />
         </Field>
 
