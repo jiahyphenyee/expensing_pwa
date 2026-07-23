@@ -81,6 +81,54 @@ function Field({ label, required, children, error }) {
   );
 }
 
+// ── Clearable input — shows an × to wipe the field while it's focused ────────
+function ClearableInput({
+  type = 'text', value, onChange, placeholder, prefix, style,
+  fontSize = 14, vPadding = 8, prefixLeft = 10, borderColor = '#eee',
+}) {
+  const [focused, setFocused] = useState(false);
+  const showClear = focused && value;
+  const hPadding = 10;
+
+  return (
+    <div style={{ position: 'relative', ...style }}>
+      {prefix && (
+        <span style={{
+          position: 'absolute', left: prefixLeft, top: '50%',
+          transform: 'translateY(-50%)', color: '#999', fontSize: fontSize - 1,
+        }}>{prefix}</span>
+      )}
+      <input
+        type={type}
+        inputMode={type === 'number' ? 'decimal' : undefined}
+        value={value}
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: '100%', fontSize, boxSizing: 'border-box',
+          padding: `${vPadding}px ${showClear ? 26 : hPadding}px ${vPadding}px ${prefix ? prefixLeft + 12 : hPadding}px`,
+          border: `1px solid ${borderColor}`, borderRadius: 8,
+          background: '#fff', color: '#1a1a1a',
+        }}
+      />
+      {showClear && (
+        <button
+          type="button"
+          onMouseDown={e => { e.preventDefault(); onChange(''); }}
+          style={{
+            position: 'absolute', right: 8, top: '50%',
+            transform: 'translateY(-50%)', fontSize: 14, color: '#999',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: 0, lineHeight: 1,
+          }}
+        >×</button>
+      )}
+    </div>
+  );
+}
+
 const inputStyle = {
   width: '100%', fontSize: 16, padding: '11px 13px',
   border: '1px solid #ddd', borderRadius: 10,
@@ -340,6 +388,9 @@ export default function NewExpensePage() {
   const [preview, setPreview] = useState(null); // { url, type } | null
   // Each file: { id, file, name, type, status: 'ready', previewUrl: string|null }
 
+  const [extraItems, setExtraItems] = useState([]);
+  // Each extra item: { id, description, amount }
+
   // ── Auth redirect ──────────────────────────────────────────────────────────
   // FIX 2: useEffect now only handles the side effect (redirect), not setState.
   //         router added to deps to satisfy exhaustive-deps warning.
@@ -406,6 +457,21 @@ export default function NewExpensePage() {
     setFiles(prev => prev.filter(f => f.id !== id));
   }
 
+  function addExtraItem() {
+    setExtraItems(prev => [
+      ...prev,
+      { id: `${Date.now()}_${Math.random()}`, description: 'WL transport', amount: '50' },
+    ]);
+  }
+
+  function updateExtraItem(id, key, value) {
+    setExtraItems(prev => prev.map(item => item.id === id ? { ...item, [key]: value } : item));
+  }
+
+  function removeExtraItem(id) {
+    setExtraItems(prev => prev.filter(item => item.id !== id));
+  }
+
   // Revoke all blob URLs on unmount
   useEffect(() => {
     const urls = objectUrlsRef.current;
@@ -439,6 +505,7 @@ export default function NewExpensePage() {
         body: JSON.stringify({
           ...form,
           submittedBy: user.name,
+          extraLineItems: extraItems.map(({ description, amount }) => ({ description, amount })),
         }),
       });
 
@@ -752,6 +819,60 @@ export default function NewExpensePage() {
           />
         </Field>
 
+        {/* Extra line items */}
+        <Field label="Extra items (optional)">
+          {extraItems.length > 0 && (
+            <div style={{
+              marginBottom: 10,
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              {extraItems.map(item => (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: '#fff', border: '0.5px solid #ddd',
+                  borderRadius: 8, padding: '8px 12px',
+                }}>
+                  <ClearableInput
+                    value={item.description}
+                    onChange={val => updateExtraItem(item.id, 'description', val)}
+                    placeholder="Description"
+                    style={{ flex: 1 }}
+                  />
+                  <ClearableInput
+                    type="number"
+                    prefix="$"
+                    value={item.amount}
+                    onChange={val => updateExtraItem(item.id, 'amount', val)}
+                    style={{ width: 100, flexShrink: 0 }}
+                  />
+                  <button
+                    onClick={() => removeExtraItem(item.id)}
+                    style={{
+                      fontSize: 16, color: '#999', background: 'none',
+                      border: 'none', cursor: 'pointer', padding: 0,
+                    }}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={addExtraItem}
+            style={{
+              width: '100%', padding: '12px',
+              border: '2px dashed #ddd', borderRadius: 10,
+              background: '#fff', color: '#1D5C8F',
+              fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>➕</span> Add extra expense (default: transport)
+          </button>
+        </Field>
+
         {/* Project */}
         <Field label="Project / site address" required error={errors.projectCode}>
           <SearchableDropdownWithFreetext
@@ -878,7 +999,7 @@ export default function NewExpensePage() {
 
         <button
           type="button"
-          onClick={() => { setForm(getInitialForm()); setFiles([]); setErrors({}); setAttachProgress([]); }}
+          onClick={() => { setForm(getInitialForm()); setFiles([]); setExtraItems([]); setErrors({}); setAttachProgress([]); }}
           disabled={submitting}
           style={{
             width: '100%', marginTop: 10,
