@@ -17,6 +17,7 @@ export async function POST(req) {
       date, projectCode, projectAddress,
       amount, payeeId, payeeName, payeeType,
       category, description, submittedBy,
+      extraLineItems,
     } = body;
 
     const auth    = await getGoogleAuth().getClient();
@@ -54,6 +55,7 @@ export async function POST(req) {
         projectCode,
         categoryCode: category,
         categoryName,
+        extraLineItems,
       });
       xeroStatus = 'synced';
     } catch (xeroErr) {
