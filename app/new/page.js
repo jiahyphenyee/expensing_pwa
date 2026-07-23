@@ -765,24 +765,17 @@ export default function NewExpensePage() {
 
         {/* Amount */}
         <Field label="Amount (SGD)" required error={errors.amount}>
-          <div style={{ position: 'relative' }}>
-            <span style={{
-              position: 'absolute', left: 13, top: '50%',
-              transform: 'translateY(-50%)', color: '#999', fontSize: 15,
-            }}>$</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={form.amount}
-              onChange={e => setField('amount', e.target.value)}
-              style={{
-                ...inputStyle,
-                paddingLeft: 26,
-                borderColor: errors.amount ? '#c0392b' : '#ddd',
-              }}
-            />
-          </div>
+          <ClearableInput
+            type="number"
+            prefix="$"
+            placeholder="0.00"
+            value={form.amount}
+            onChange={val => setField('amount', val)}
+            fontSize={16}
+            vPadding={11}
+            prefixLeft={13}
+            borderColor={errors.amount ? '#c0392b' : '#ddd'}
+          />
         </Field>
 
         {/* Category */}
