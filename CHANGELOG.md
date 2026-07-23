@@ -1,0 +1,48 @@
+# Changelog
+
+Single source of truth for incremental updates. After every code change,
+append a 1–2 line entry under **Unreleased**. Keep entries short — no
+rationale or code excerpts (that belongs in `architecture-decisions.md` if
+it's a real design decision). When a batch of Unreleased entries is
+deployed/released, retitle the section with a date and start a fresh
+Unreleased section above it.
+
+## Unreleased
+
+- _(nothing yet)_
+
+## 2026-07-23
+
+- Extra Amount field now has the same focus-clear × button as line-item amounts.
+- Claim form supports repeatable extra expense line items (description + amount).
+- Xero draft bill creation now includes extra line items as additional invoice lines.
+
+## 2026-07-19
+
+- Default line items now use "No Tax" instead of a tax rate.
+
+## 2026-07-17
+
+- Submission field order reworked for the claim form.
+- Expense categories mapped to Xero tracking category options.
+
+## 2026-07-02
+
+- Receipt PDF preview added (pdfjs-dist), with several rounds of fixes for
+  scaling, mobile zoom, and a console deprecation warning.
+- Receipt image previews added before submission.
+- Expense IDs now include a timestamp suffix to avoid collisions.
+- History page: added description column, plus search by amount and address.
+- Fixed iOS autofocus causing layout resize, and Sheets formula-injection
+  on user-entered text.
+
+## 2026-06-06
+
+- Initial working version: PIN login, claim submission, Sheets + Xero wiring.
+- Fixed deployment issues, iOS share/receipt-attachment bug, ESLint errors.
+- Added app icon, home button, default payee, and form reset after submit.
+- `.env.local` added to `.gitignore`.
+
+## 2026-06-04
+
+- Project bootstrapped with `create-next-app`.
