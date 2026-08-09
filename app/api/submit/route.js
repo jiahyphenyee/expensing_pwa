@@ -1,7 +1,6 @@
 // Writes the new expense row to the Expenses tab.
 
-import { getGoogleAuth } from '@/lib/google';
-import { google } from 'googleapis';
+import { getSheetsClient, getTab, range } from '@/lib/sheets';
 import { createXeroBill } from '@/lib/xero';
 
 // Prevent Sheets from interpreting user text as formulas when using USER_ENTERED
@@ -20,14 +19,18 @@ export async function POST(req) {
       extraLineItems,
     } = body;
 
-    const auth    = await getGoogleAuth().getClient();
-    const sheets  = google.sheets({ version: 'v4', auth });
+    const sheets  = await getSheetsClient();
     const sheetId = process.env.GOOGLE_SHEET_ID;
+
+    const [expensesTab, categoriesTab] = await Promise.all([
+      getTab('EXPENSES'),
+      getTab('CATEGORIES'),
+    ]);
 
     // ── 1. Generate expense ID ──────────────────────────────────────────────
     const existing = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: 'Expenses!A:A',
+      range: range(expensesTab, 'A:A'),
     });
     const rowCount  = (existing.data.values || []).length;
     const expenseId = `EXP-${String(rowCount).padStart(3, '0')}-${Date.now().toString().slice(-4)}`; // e.g. EXP-005-1234
@@ -35,7 +38,7 @@ export async function POST(req) {
     // ── 2. Get category name ────────────────────────────────────────────────
     const categoriesRes = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: 'Categories!A:B',
+      range: range(categoriesTab, 'A:B'),
     });
     const categoryRow  = (categoriesRes.data.values || [])
       .find(r => r[0] === category);
@@ -87,7 +90,7 @@ export async function POST(req) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: 'Expenses!A:R',
+      range: range(expensesTab, 'A:R'),
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [newRow] },
     });

@@ -1,7 +1,6 @@
 // Reads the Expenses tab and returns submissions filtered by user.
 
-import { getGoogleAuth } from '@/lib/google';
-import { google } from 'googleapis';
+import { getTab, readRows } from '@/lib/sheets';
 import { ADMIN_ROLES } from '@/lib/constants';
 
 const PAGE_SIZE = 20;
@@ -15,15 +14,10 @@ export async function GET(req) {
     const q = (searchParams.get('q') || '').trim().toLowerCase();
     const amountFilter = (searchParams.get('amount') || '').trim();
 
-    const auth = await getGoogleAuth().getClient();
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'Expenses!A:R',
-    });
-
-    const rows = (res.data.values || []).slice(1); // skip header
+    // Filter by ID, not .slice(1): the Expenses tab has a blank row 3 and an "ℹ" note
+    // row 4 sitting inside the data, which previously surfaced as two junk entries in
+    // every admin's history.
+    const rows = await readRows(await getTab('EXPENSES'), 'A:R', /^EXP-/);
 
     // Admin roles see all; everyone else sees their own only
     const isAdmin = ADMIN_ROLES.includes(role);
