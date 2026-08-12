@@ -12,6 +12,9 @@ Unreleased section above it.
 - Receipts are no longer compulsory: workers can tick "I don't have a receipt"
   to submit without one, recorded in the new Expenses column S (`receipt_status`)
   and flagged in history.
+- Receipt photos are now downscaled before upload, so a large phone photo no
+  longer fails silently against the 4.5 MB request limit. Oversized PDFs, which
+  can't be downscaled, are rejected at the file picker with a reason.
 
 ## 2026-07-23
 

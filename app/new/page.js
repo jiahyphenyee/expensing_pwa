@@ -53,6 +53,29 @@ async function compressImage(file) {
   });
 }
 
+// Vercel caps a serverless request body at 4.5 MB, and /api/attach buffers the whole
+// file in memory before PUTing it to Xero. A modern phone photo is 5–12 MB, so it has
+// to be downscaled first or the upload fails with an opaque error. Kept under the cap
+// with headroom for the multipart envelope.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+// compressImage always re-encodes as JPEG, so a .png/.heic name would misdescribe the
+// bytes — Xero takes the filename and content type at face value.
+function jpegName(name) {
+  return `${name.replace(/\.[^.]+$/, '')}.jpg`;
+}
+
+// Images are downscaled; anything else (PDFs) is passed through untouched.
+// compressImage resolves with the original File if decoding fails, so an identity
+// check tells us whether compression actually happened.
+async function prepareForUpload(file) {
+  if (!isImage(file.type)) return { blob: file, name: file.name };
+  const blob = await compressImage(file);
+  return blob === file
+    ? { blob: file, name: file.name }
+    : { blob, name: jpegName(file.name) };
+}
+
 function bufToBase64(buf) {
   let binary = '';
   const bytes = new Uint8Array(buf);
@@ -446,8 +469,14 @@ export default function NewExpensePage() {
   }
 
   function handleFilePick(e) {
-    const picked   = Array.from(e.target.files);
-    const newFiles = picked.map(file => {
+    const picked = Array.from(e.target.files);
+
+    // Images get downscaled before upload, so only pass-through files (PDFs) can
+    // still breach the limit. Catch them here rather than after a Xero bill exists.
+    const tooBig = picked.filter(f => !isImage(f.type) && f.size > MAX_UPLOAD_BYTES);
+    const accepted = picked.filter(f => !tooBig.includes(f));
+
+    const newFiles = accepted.map(file => {
       const previewUrl = isPreviewable(file.type) ? URL.createObjectURL(file) : null;
       if (previewUrl) objectUrlsRef.current.push(previewUrl);
       return { id: `${Date.now()}_${Math.random()}`, file, name: file.name, type: file.type, status: 'ready', previewUrl };
@@ -455,8 +484,13 @@ export default function NewExpensePage() {
     setFiles(prev => [...prev, ...newFiles]);
     // Clear the declaration: the checkbox unmounts once files exist, but leaving the
     // state set would record declared_none on a claim that does have a receipt.
-    setNoReceipt(false);
-    setErrors(prev => ({ ...prev, files: '' }));
+    if (newFiles.length > 0) setNoReceipt(false);
+    setErrors(prev => ({
+      ...prev,
+      files: tooBig.length > 0
+        ? `${tooBig.map(f => f.name).join(', ')} — too large to upload (max 4 MB). Photograph the receipt instead.`
+        : '',
+    }));
     e.target.value = '';
   }
 
@@ -534,6 +568,9 @@ export default function NewExpensePage() {
       const progress = files.map(f => ({ name: f.name, status: 'pending' }));
       setAttachProgress(progress);
 
+      // Downscale once, up front — reused for the upload and the share-sheet copy below.
+      const prepared = await Promise.all(files.map(f => prepareForUpload(f.file)));
+
       for (let i = 0; i < files.length; i++) {
         setAttachProgress(prev =>
           prev.map((p, idx) =>
@@ -542,8 +579,21 @@ export default function NewExpensePage() {
         );
 
         try {
+          const { blob, name } = prepared[i];
+
+          if (blob.size > MAX_UPLOAD_BYTES) {
+            setAttachProgress(prev =>
+              prev.map((p, idx) =>
+                idx === i ? { ...p, status: 'error', reason: 'Too large' } : p
+              )
+            );
+            continue;
+          }
+
           const body = new FormData();
-          body.append('file',       files[i].file);
+          // Third argument sets the multipart filename — without it the blob arrives
+          // at the server named "blob" and Xero stores the attachment under that.
+          body.append('file',       blob, name);
           body.append('xeroBillId', xeroBillId);
 
           const attachRes  = await fetch('/api/attach', { method: 'POST', body });
@@ -580,12 +630,9 @@ export default function NewExpensePage() {
       // Store compressed receipt files for share sheet — best-effort, text-only share if quota exceeded
       sessionStorage.removeItem('lastExpenseFiles');
       try {
-        const stored = await Promise.all(files.map(async f => {
-          const blob = isImage(f.file.type)
-            ? await compressImage(f.file)
-            : f.file;
+        const stored = await Promise.all(prepared.map(async ({ blob, name }, i) => {
           const buf = await blob.arrayBuffer();
-          return { name: f.name, type: blob.type || f.file.type, data: bufToBase64(buf) };
+          return { name, type: blob.type || files[i].file.type, data: bufToBase64(buf) };
         }));
         sessionStorage.setItem('lastExpenseFiles', JSON.stringify(stored));
       } catch {
@@ -977,7 +1024,7 @@ export default function NewExpensePage() {
                 }}>
                   {f.status === 'done'      ? 'Attached' :
                    f.status === 'uploading' ? 'Attaching…' :
-                   f.status === 'error'     ? 'Failed' : 'Waiting'}
+                   f.status === 'error'     ? (f.reason || 'Failed') : 'Waiting'}
                 </span>
               </div>
             ))}
