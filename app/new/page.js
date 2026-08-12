@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
-import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE } from '@/lib/constants';
+import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE, RECEIPT_STATUSES } from '@/lib/constants';
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('@/app/components/PdfViewer'), { ssr: false });
@@ -388,6 +388,9 @@ export default function NewExpensePage() {
   const [preview, setPreview] = useState(null); // { url, type } | null
   // Each file: { id, file, name, type, status: 'ready', previewUrl: string|null }
 
+  // Explicit "there is no receipt" declaration — only reachable while files is empty.
+  const [noReceipt, setNoReceipt] = useState(false);
+
   const [extraItems, setExtraItems] = useState([]);
   // Each extra item: { id, description, amount }
 
@@ -450,6 +453,10 @@ export default function NewExpensePage() {
       return { id: `${Date.now()}_${Math.random()}`, file, name: file.name, type: file.type, status: 'ready', previewUrl };
     });
     setFiles(prev => [...prev, ...newFiles]);
+    // Clear the declaration: the checkbox unmounts once files exist, but leaving the
+    // state set would record declared_none on a claim that does have a receipt.
+    setNoReceipt(false);
+    setErrors(prev => ({ ...prev, files: '' }));
     e.target.value = '';
   }
 
@@ -488,7 +495,9 @@ export default function NewExpensePage() {
     if (form.projectCode === GENERAL_PROJECT.code && !form.description.trim()) {
       e.description = 'Please describe the site or reason since no project was selected';
     }
-    if (files.length === 0) e.files = 'At least one receipt required';
+    if (files.length === 0 && !noReceipt) {
+      e.files = 'Attach a receipt, or tick "I don\'t have a receipt"';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -505,6 +514,9 @@ export default function NewExpensePage() {
         body: JSON.stringify({
           ...form,
           submittedBy: user.name,
+          receiptStatus: files.length > 0
+            ? RECEIPT_STATUSES.ATTACHED
+            : RECEIPT_STATUSES.DECLARED_NONE,
           extraLineItems: extraItems.map(({ description, amount }) => ({ description, amount })),
         }),
       });
@@ -753,6 +765,24 @@ export default function NewExpensePage() {
             <span style={{ fontSize: 18 }}>📎</span> Add receipt
           </button>
 
+          {files.length === 0 && (
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              marginTop: 10, fontSize: 13, color: '#666', cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={noReceipt}
+                onChange={e => {
+                  setNoReceipt(e.target.checked);
+                  setErrors(prev => ({ ...prev, files: '' }));
+                }}
+                style={{ width: 16, height: 16, flexShrink: 0, accentColor: '#1D5C8F' }}
+              />
+              I don&apos;t have a receipt for this expense
+            </label>
+          )}
+
           <input
             ref={fileInputRef}
             type="file"
@@ -986,13 +1016,15 @@ export default function NewExpensePage() {
             ? attachProgress.length > 0
               ? `Attaching ${attachProgress.filter(f => f.status === 'done').length}/${attachProgress.length}…`
               : 'Submitting…'
-            : 'Submit claim'
+            : files.length === 0 && noReceipt
+              ? 'Submit without receipt'
+              : 'Submit claim'
           }
         </button>
 
         <button
           type="button"
-          onClick={() => { setForm(getInitialForm()); setFiles([]); setExtraItems([]); setErrors({}); setAttachProgress([]); }}
+          onClick={() => { setForm(getInitialForm()); setFiles([]); setNoReceipt(false); setExtraItems([]); setErrors({}); setAttachProgress([]); }}
           disabled={submitting}
           style={{
             width: '100%', marginTop: 10,

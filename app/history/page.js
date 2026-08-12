@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
+import { RECEIPT_STATUSES } from '@/lib/constants';
 
 const STATUS_STYLE = {
   pending:  { bg: '#fff3cd', color: '#856404', label: 'Pending' },
@@ -178,12 +179,25 @@ export default function HistoryPage() {
                       {exp.expenseId}
                     </div>
                   </div>
-                  <span style={{
-                    fontSize: 11, fontWeight: 500, padding: '3px 10px',
-                    borderRadius: 20, background: s.bg, color: s.color,
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    flexWrap: 'wrap', justifyContent: 'flex-end',
                   }}>
-                    {s.label}
-                  </span>
+                    {exp.receiptStatus === RECEIPT_STATUSES.DECLARED_NONE && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 500, padding: '3px 10px',
+                        borderRadius: 20, background: '#fdf1e3', color: '#e67e22',
+                      }}>
+                        ⚠ No receipt
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 11, fontWeight: 500, padding: '3px 10px',
+                      borderRadius: 20, background: s.bg, color: s.color,
+                    }}>
+                      {s.label}
+                    </span>
+                  </div>
                 </div>
                 <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
                   📍 {exp.displayAddress}

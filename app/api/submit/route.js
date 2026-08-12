@@ -2,6 +2,7 @@
 
 import { getSheetsClient, getTab, range } from '@/lib/sheets';
 import { createXeroBill } from '@/lib/xero';
+import { RECEIPT_STATUSES } from '@/lib/constants';
 
 // Prevent Sheets from interpreting user text as formulas when using USER_ENTERED
 function safe(val) {
@@ -16,8 +17,12 @@ export async function POST(req) {
       date, projectCode, projectAddress,
       amount, payeeId, payeeName, payeeType,
       category, description, submittedBy,
-      extraLineItems,
+      extraLineItems, receiptStatus,
     } = body;
+
+    // Fixed enum, not free text — anything else is discarded rather than written through.
+    const receiptStatusValue =
+      Object.values(RECEIPT_STATUSES).includes(receiptStatus) ? receiptStatus : '';
 
     const sheets  = await getSheetsClient();
     const sheetId = process.env.GOOGLE_SHEET_ID;
@@ -86,11 +91,12 @@ export async function POST(req) {
       xeroBillId,
       xeroStatus,
       xeroStatus === 'error' ? 'Xero push failed on submission' : '',
+      receiptStatusValue, // S — 'attached' | 'declared_none'
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: range(expensesTab, 'A:R'),
+      range: range(expensesTab, 'A:S'),
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [newRow] },
     });

@@ -9,7 +9,9 @@ Unreleased section above it.
 
 ## Unreleased
 
-- _(nothing yet)_
+- Receipts are no longer compulsory: workers can tick "I don't have a receipt"
+  to submit without one, recorded in the new Expenses column S (`receipt_status`)
+  and flagged in history.
 
 ## 2026-07-23
 
