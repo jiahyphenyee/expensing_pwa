@@ -1,7 +1,7 @@
 // Screen 3: Expense form + receipt upload
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE, RECEIPT_STATUSES } from '@/lib/constants';
@@ -18,6 +18,19 @@ const isPreviewable = type => isImage(type) || isPdf(type);
 // ── Shared hover handlers for dropdown list items ─────────────────────────────
 const hoverOn  = e => { e.currentTarget.style.background = '#f0f4f8'; };
 const hoverOff = e => { e.currentTarget.style.background = 'transparent'; };
+
+// ── Autofocus the search box when a dropdown opens ────────────────────────────
+// Deliberately a layout effect: iOS only raises the on-screen keyboard for a focus()
+// that runs inside the task of the gesture that opened the panel. Layout effects commit
+// synchronously within the click, so the keyboard comes up; a passive useEffect is
+// flushed later and iOS silently focuses without showing the keyboard.
+function useAutofocusOnOpen(open) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (open) ref.current?.focus();
+  }, [open]);
+  return ref;
+}
 
 function getInitialForm() {
   return {
@@ -167,6 +180,7 @@ function SearchableDropdown({
   const [query, setQuery] = useState('');
   const [open, setOpen]   = useState(false);
   const wrapperRef        = useRef();
+  const searchRef         = useAutofocusOnOpen(open);
 
   const filtered = query.trim()
     ? options.filter(o =>
@@ -218,6 +232,7 @@ function SearchableDropdown({
         }}>
           <div style={{ padding: '8px 10px', borderBottom: '0.5px solid #eee' }}>
             <input
+              ref={searchRef}
               type="text"
               placeholder="Search…"
               value={query}
@@ -271,6 +286,7 @@ function SearchableDropdownWithFreetext({
   const [query, setQuery] = useState('');
   const [open, setOpen]   = useState(false);
   const wrapperRef        = useRef();
+  const searchRef         = useAutofocusOnOpen(open);
 
   const filtered = query.trim()
     ? options.filter(o =>
@@ -322,6 +338,7 @@ function SearchableDropdownWithFreetext({
         }}>
           <div style={{ padding: '8px 10px', borderBottom: '0.5px solid #eee' }}>
             <input
+              ref={searchRef}
               type="text"
               placeholder="Search or type a name…"
               value={query}

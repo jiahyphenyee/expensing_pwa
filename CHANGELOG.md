@@ -9,6 +9,10 @@ Unreleased section above it.
 
 ## Unreleased
 
+- Opening a searchable dropdown (category, project address, payee) now focuses the
+  search box and raises the keyboard.
+- Login is remembered for 7 days in localStorage instead of dying with the browser
+  session, matching projects-pwa. Everyone re-enters their PIN once after this ships.
 - Receipts are no longer compulsory: workers can tick "I don't have a receipt"
   to submit without one, recorded in the new Expenses column S (`receipt_status`)
   and flagged in history.
