@@ -9,6 +9,7 @@ Unreleased section above it.
 
 ## Unreleased
 
+- Favicon replaced with the app icon (was still the Next.js default).
 - Opening a searchable dropdown (category, project address, payee) now focuses the
   search box and raises the keyboard.
 - Login is remembered for 7 days in localStorage instead of dying with the browser
