@@ -1,10 +1,21 @@
 import { createServer } from 'http';
 import { parse } from 'url';
 
-const CLIENT_ID     = 'EC7DAEEB0B364AC883C4EA0436072C43';
-const CLIENT_SECRET = '5vHucFrmspuTRWU8DG1FvTb0HD9Muz5FFdzPerAshPYDhRvE';
+// Run standalone, so Next.js isn't here to load .env.local for us. Ignore a
+// missing file — the vars may already be exported in the shell.
+try {
+  process.loadEnvFile('.env.local');
+} catch {}
+
+const CLIENT_ID     = process.env.XERO_CLIENT_ID;
+const CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
 const REDIRECT_URI  = 'http://localhost:3000/api/xero/callback';
 const SCOPES = 'openid profile email accounting.invoices accounting.contacts accounting.attachments accounting.settings offline_access projects.read';
+
+if (!CLIENT_ID || !CLIENT_SECRET) {
+  console.error('Set XERO_CLIENT_ID and XERO_CLIENT_SECRET in .env.local first.');
+  process.exit(1);
+}
 
 // Step 1: Print auth URL
 const authUrl = `https://login.xero.com/identity/connect/authorize?` +
@@ -66,8 +77,6 @@ const server = createServer(async (req, res) => {
   // Step 5: Print everything
   res.end('Success! Check your terminal.');
   console.log('\n=== SUCCESS — Add these to .env.local ===\n');
-  // console.log(`XERO_CLIENT_ID=${CLIENT_ID}`);
-  // console.log(`XERO_CLIENT_SECRET=${CLIENT_SECRET}`);
   console.log(`XERO_TENANT_ID=${tenantId}`);
   console.log(`XERO_ACCESS_TOKEN=${tokens.access_token}`);
   console.log(`XERO_REFRESH_TOKEN=${tokens.refresh_token}`);
