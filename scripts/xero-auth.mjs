@@ -4,7 +4,7 @@ import { parse } from 'url';
 const CLIENT_ID     = 'EC7DAEEB0B364AC883C4EA0436072C43';
 const CLIENT_SECRET = '5vHucFrmspuTRWU8DG1FvTb0HD9Muz5FFdzPerAshPYDhRvE';
 const REDIRECT_URI  = 'http://localhost:3000/api/xero/callback';
-const SCOPES = 'openid profile email accounting.invoices accounting.contacts accounting.attachments accounting.settings offline_access';
+const SCOPES = 'openid profile email accounting.invoices accounting.contacts accounting.attachments accounting.settings offline_access projects.read';
 
 // Step 1: Print auth URL
 const authUrl = `https://login.xero.com/identity/connect/authorize?` +
