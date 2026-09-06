@@ -1,14 +1,9 @@
 // Writes the new expense row to the Expenses tab.
 
-import { getSheetsClient, getTab, range } from '@/lib/sheets';
+import { getSheetsClient, getTab, range, safe } from '@/lib/sheets';
 import { createXeroBill } from '@/lib/xero';
+import { createCostsForExtraItems } from '@/lib/costs';
 import { RECEIPT_STATUSES } from '@/lib/constants';
-
-// Prevent Sheets from interpreting user text as formulas when using USER_ENTERED
-function safe(val) {
-  if (typeof val === 'string' && /^[=+\-@|]/.test(val)) return `'${val}`;
-  return val ?? '';
-}
 
 export async function POST(req) {
   try {
@@ -101,7 +96,32 @@ export async function POST(req) {
       requestBody: { values: [newRow] },
     });
 
-    return Response.json({ success: true, expenseId, xeroBillId });
+    // ── 5. Write extra items to Project costs ───────────────────────────────
+    // Each extra item becomes its own non-receipted project cost row. Deliberately after
+    // the expense row is safely written, and swallowed on failure for the same reason
+    // Xero is: the claim itself must never be lost to a secondary write. The extra items
+    // are already on the Xero bill either way, so a failure here costs project reporting
+    // detail, not the money record.
+    let costsWritten = 0;
+    let costsStatus  = '';
+
+    try {
+      const result = await createCostsForExtraItems({
+        extraItems:     extraLineItems,
+        projectCode,
+        projectAddress,
+        date,
+        categoryCode:   category,
+        submittedBy,
+      });
+      costsWritten = result.written;
+      costsStatus  = 'ok';
+    } catch (costErr) {
+      console.error('Project costs error:', costErr.message);
+      costsStatus = 'error';
+    }
+
+    return Response.json({ success: true, expenseId, xeroBillId, costsWritten, costsStatus });
 
   } catch (err) {
     console.error('Submit error:', err.message);

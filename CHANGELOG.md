@@ -9,6 +9,11 @@ Unreleased section above it.
 
 ## Unreleased
 
+- Each extra item on a claim is now also written to the workbook's "Project costs"
+  tab as its own non-receipted row, booked as `transport` and inheriting the
+  expense's category (falling back to `TRANS`). They stay on the Xero bill too.
+- Description now has tap-to-append helper pills below it — the selected category,
+  `material`, `labour`, and the claim date as dd/mm/yy.
 - Favicon replaced with the app icon (was still the Next.js default), cropped
   tighter than the PWA icon so the wordmark stays readable at tab sizes.
 - Opening a searchable dropdown (category, project address, payee) now focuses the

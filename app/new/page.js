@@ -96,6 +96,37 @@ function bufToBase64(buf) {
   return btoa(binary);
 }
 
+// ── Description helper pills ──────────────────────────────────────────────────
+// Descriptions are written on a phone, on site, and follow a house pattern:
+// "<trade> <material|labour> <date>", e.g. "Electrical material 06/09/26". These append
+// the pieces on one tap each so the whole line can be built without the keyboard.
+
+// The date the pill inserts. Deliberately dd/mm/yy, matching how the dates are already
+// written by hand in the workbook's descriptions ("canvas for water test - 280526"),
+// NOT the ISO form the date field holds.
+function toDdMmYy(isoDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
+function HelperPill({ label, onTap }) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      style={{
+        padding: '6px 12px', borderRadius: 999,
+        border: '1px solid #cfe0ee', background: '#f2f7fb',
+        color: '#1D5C8F', fontSize: 13, lineHeight: 1.2,
+        cursor: 'pointer', whiteSpace: 'nowrap',
+      }}
+    >
+      + {label}
+    </button>
+  );
+}
+
 // ── Field wrapper ─────────────────────────────────────────────────────────────
 function Field({ label, required, children, error }) {
   return (
@@ -457,11 +488,31 @@ export default function NewExpensePage() {
     setErrors(prev => ({ ...prev, [key]: '' }));
   }
 
+  /**
+   * Append a word to the description, one pill tap at a time.
+   *
+   * Leaves a trailing space so tapping two pills in a row, or carrying on with the
+   * keyboard, does not run the words together. The description is trimmed on submit so
+   * that space never reaches the sheet.
+   */
+  function appendToDescription(text) {
+    setForm(prev => {
+      const current = prev.description.trimEnd();
+      return { ...prev, description: current ? `${current} ${text} ` : `${text} ` };
+    });
+    setErrors(prev => ({ ...prev, description: '' }));
+  }
+
   // ── Project options — General first, sheet projects after, no duplicates ───
   const projectOptions = dropdowns ? [
     GENERAL_PROJECT,
     ...dropdowns.activeProjects.filter(p => p.code !== GENERAL_PROJECT.code),
   ] : [];
+
+  // Display name for the chosen category, e.g. 'Electrical'. Empty until one is picked.
+  const selectedCategoryName = form.category
+    ? (dropdowns?.activeCategories.find(c => c.code === form.category)?.name ?? '')
+    : '';
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   function handleProjectSelect(project) {
@@ -564,6 +615,9 @@ export default function NewExpensePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          // Pills append a trailing space so the next tap or keystroke reads cleanly;
+          // it must not reach the sheet.
+          description: form.description.trim(),
           submittedBy: user.name,
           receiptStatus: files.length > 0
             ? RECEIPT_STATUSES.ATTACHED
@@ -638,9 +692,7 @@ export default function NewExpensePage() {
         projectAddress: form.projectAddress,
         payeeName:      form.payeeName,
         date:           form.date,
-        category:       form.category
-          ? (dropdowns?.activeCategories.find(c => c.code === form.category)?.name ?? '')
-          : '',
+        category:       selectedCategoryName,
         xeroBillId,
       }));
 
@@ -877,11 +929,7 @@ export default function NewExpensePage() {
           <SearchableDropdown
             options={dropdowns?.activeCategories || []}
             value={form.category
-              ? {
-                  code: form.category,
-                  name: dropdowns?.activeCategories
-                    .find(c => c.code === form.category)?.name,
-                }
+              ? { code: form.category, name: selectedCategoryName }
               : null
             }
             placeholder="Search category… (optional)"
@@ -904,6 +952,27 @@ export default function NewExpensePage() {
             rows={2}
             style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 }}
           />
+
+          {/* Tap-to-append shortcuts. The trade pill only appears once a category is
+              chosen — there is no word to insert before that. */}
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8,
+          }}>
+            {selectedCategoryName && (
+              <HelperPill
+                label={selectedCategoryName}
+                onTap={() => appendToDescription(selectedCategoryName)}
+              />
+            )}
+            <HelperPill label="material" onTap={() => appendToDescription('material')} />
+            <HelperPill label="labour"   onTap={() => appendToDescription('labour')} />
+            {toDdMmYy(form.date) && (
+              <HelperPill
+                label={toDdMmYy(form.date)}
+                onTap={() => appendToDescription(toDdMmYy(form.date))}
+              />
+            )}
+          </div>
         </Field>
 
         {/* Extra line items */}
