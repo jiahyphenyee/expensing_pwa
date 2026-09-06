@@ -12,6 +12,8 @@ Unreleased section above it.
 - Each extra item on a claim is now also written to the workbook's "Project costs"
   tab as its own non-receipted row, booked as `transport` and inheriting the
   expense's category (falling back to `TRANS`). They stay on the Xero bill too.
+- Those rows stamp `created_by` as "Expense PWA, <name>", marking the costs this
+  app wrote — the ones that also exist in Xero — apart from projects-pwa's own.
 - Description now has tap-to-append helper pills below it — the selected category,
   `material`, `labour`, and the claim date as dd/mm/yy.
 - Favicon replaced with the app icon (was still the Next.js default), cropped
