@@ -1,7 +1,7 @@
 // Screen 3: Expense form + receipt upload
 
 'use client';
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
 import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE, RECEIPT_STATUSES } from '@/lib/constants';
@@ -14,6 +14,16 @@ const ACCEPTED_RECEIPT_TYPES = 'image/*,application/pdf';
 const isImage      = type => type.startsWith('image/');
 const isPdf        = type => type === 'application/pdf';
 const isPreviewable = type => isImage(type) || isPdf(type);
+
+// ── Pointer capability ────────────────────────────────────────────────────────
+// Dragging a file needs a mouse, so the drop hint is only worth showing there.
+const FINE_POINTER = '(hover: hover) and (pointer: fine)';
+const hasFinePointer = () => window.matchMedia(FINE_POINTER).matches;
+function subscribeToPointer(onChange) {
+  const mq = window.matchMedia(FINE_POINTER);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
 
 // ── Shared hover handlers for dropdown list items ─────────────────────────────
 const hoverOn  = e => { e.currentTarget.style.background = '#f0f4f8'; };
@@ -456,6 +466,7 @@ export default function NewExpensePage() {
   const [form, setForm] = useState(getInitialForm);
 
   const [files, setFiles] = useState([]);
+  const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState(null); // { url, type } | null
   // Each file: { id, file, name, type, status: 'ready', previewUrl: string|null }
 
@@ -536,13 +547,16 @@ export default function NewExpensePage() {
     setField('category', cat.code);
   }
 
-  function handleFilePick(e) {
-    const picked = Array.from(e.target.files);
+  function addFiles(picked) {
+    // The file input is limited by its accept list, but a drop carries anything the
+    // desktop can drag, so the type check has to happen here too.
+    const wrongType = picked.filter(f => !isPreviewable(f.type));
 
     // Images get downscaled before upload, so only pass-through files (PDFs) can
     // still breach the limit. Catch them here rather than after a Xero bill exists.
     const tooBig = picked.filter(f => !isImage(f.type) && f.size > MAX_UPLOAD_BYTES);
-    const accepted = picked.filter(f => !tooBig.includes(f));
+    const rejected = new Set([...wrongType, ...tooBig]);
+    const accepted = picked.filter(f => !rejected.has(f));
 
     const newFiles = accepted.map(file => {
       const previewUrl = isPreviewable(file.type) ? URL.createObjectURL(file) : null;
@@ -553,13 +567,52 @@ export default function NewExpensePage() {
     // Clear the declaration: the checkbox unmounts once files exist, but leaving the
     // state set would record declared_none on a claim that does have a receipt.
     if (newFiles.length > 0) setNoReceipt(false);
-    setErrors(prev => ({
-      ...prev,
-      files: tooBig.length > 0
-        ? `${tooBig.map(f => f.name).join(', ')} — too large to upload (max 4 MB). Photograph the receipt instead.`
-        : '',
-    }));
+
+    const messages = [];
+    if (tooBig.length > 0) {
+      messages.push(`${tooBig.map(f => f.name).join(', ')} — too large to upload (max 4 MB). Photograph the receipt instead.`);
+    }
+    if (wrongType.length > 0) {
+      messages.push(`${wrongType.map(f => f.name).join(', ')} — only images and PDFs can be attached.`);
+    }
+    setErrors(prev => ({ ...prev, files: messages.join(' ') }));
+  }
+
+  function handleFilePick(e) {
+    addFiles(Array.from(e.target.files));
     e.target.value = '';
+  }
+
+  // ── Drag and drop (desktop browsers; these events never fire on touch) ───────
+  // dragenter/dragleave also fire when the pointer crosses the drop zone's own
+  // children, so a plain boolean flickers. Counting enters against leaves doesn't.
+  const dragDepth = useRef(0);
+
+  function handleDragEnter(e) {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragging(true);
+  }
+
+  function handleDragOver(e) {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    // Without this the browser navigates to the dropped file instead of handing it over.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+
+  function handleDragLeave() {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    const dropped = Array.from(e.dataTransfer?.files || []);
+    if (dropped.length > 0) addFiles(dropped);
   }
 
   function removeFile(id) {
@@ -580,6 +633,10 @@ export default function NewExpensePage() {
   function removeExtraItem(id) {
     setExtraItems(prev => prev.filter(item => item.id !== id));
   }
+
+  // Only mention dropping where there is a mouse to drag with. The server snapshot is
+  // false, so the first client paint matches the markup and hydration stays quiet.
+  const canDrop = useSyncExternalStore(subscribeToPointer, hasFinePointer, () => false);
 
   // Revoke all blob URLs on unmount
   useEffect(() => {
@@ -729,7 +786,15 @@ export default function NewExpensePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <main style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}>
+    // The drop handlers sit on the whole page, not just the button: a file dropped on
+    // any other part of the window makes the browser navigate to it and lose the form.
+    <main
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{ minHeight: '100svh', background: '#f8f9fa', paddingBottom: '2rem' }}
+    >
 
       {/* Receipt preview modal */}
       {preview && (
@@ -871,14 +936,17 @@ export default function NewExpensePage() {
             onClick={() => fileInputRef.current.click()}
             style={{
               width: '100%', padding: '12px',
-              border: '2px dashed #ddd', borderRadius: 10,
-              background: '#fff', color: '#1D5C8F',
+              border: `2px dashed ${dragging ? '#1D5C8F' : '#ddd'}`, borderRadius: 10,
+              background: dragging ? '#eef4fa' : '#fff', color: '#1D5C8F',
               fontSize: 14, cursor: 'pointer',
               display: 'flex', alignItems: 'center',
               justifyContent: 'center', gap: 8,
             }}
           >
-            <span style={{ fontSize: 18 }}>📎</span> Add receipt
+            <span style={{ fontSize: 18 }}>{dragging ? '📥' : '📎'}</span>
+            {dragging
+              ? 'Drop to attach'
+              : canDrop ? 'Add receipt, or drop files anywhere' : 'Add receipt'}
           </button>
 
           {files.length === 0 && (
