@@ -619,10 +619,17 @@ export default function NewExpensePage() {
     setFiles(prev => prev.filter(f => f.id !== id));
   }
 
+  // The default description carries the same date and trade the pills append to the
+  // main description, so a transport line reads the same way on the sheet. Filled in
+  // from the form as it stands when the row is added and then left alone: it is an
+  // editable field, and re-deriving it would wipe whatever was typed over it.
   function addExtraItem() {
+    const description = ['WL Transport', toDdMmYy(form.date), selectedCategoryName]
+      .filter(Boolean)
+      .join(' ');
     setExtraItems(prev => [
       ...prev,
-      { id: `${Date.now()}_${Math.random()}`, description: 'WL transport', amount: '50' },
+      { id: `${Date.now()}_${Math.random()}`, description, amount: '50' },
     ]);
   }
 
