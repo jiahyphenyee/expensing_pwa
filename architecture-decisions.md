@@ -52,12 +52,18 @@ initial tokens after a Xero app reconnect.
 
 ## Category → Xero tracking category mapping
 
-The PWA's expense categories (`CATEGORY_TO_TRACKING` in `lib/constants.js`)
-map onto an existing Xero tracking category ("Service") so job-costing
-reports in Xero keep working unchanged. Some categories intentionally map
-to `null` (e.g. `MATL`, `WTRP`, `OTHR`) where no equivalent tracking option
-exists — those line items are posted untagged rather than forced into the
-wrong bucket.
+The PWA's expense categories map onto an existing Xero tracking category
+("Service") so job-costing reports in Xero keep working unchanged. Some
+categories intentionally have no mapping (e.g. `OTHR`) where no equivalent
+tracking option exists — those line items are posted untagged rather than
+forced into the wrong bucket.
+
+**Since 2026-10-06 the map lives in the workbook**, as the Categories tab's
+`xero_tracking_option` column (E), not in `lib/constants.js`. The quote and
+billing feature in projects-pwa needs the same mapping for sales invoices,
+and two hard-coded copies had already drifted (this app's copy was missing
+`AIRC` → "Aircon", so aircon bills went to Xero untagged). One column, read
+by both apps, cannot drift.
 
 ## Repeatable extra line items (2026-07-23)
 

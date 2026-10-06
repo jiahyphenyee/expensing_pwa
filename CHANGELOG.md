@@ -9,6 +9,9 @@ Unreleased section above it.
 
 ## Unreleased
 
+- The category → Xero "Service" tracking option map is now read from the Categories
+  tab's new `xero_tracking_option` column instead of `lib/constants.js`, so this app
+  and projects-pwa share one list. Fixes `AIRC` bills going to Xero untagged.
 - Each extra item on a claim is now also written to the workbook's "Project costs"
   tab as its own non-receipted row, booked as `transport` and inheriting the
   expense's category (falling back to `TRANS`). They stay on the Xero bill too.
