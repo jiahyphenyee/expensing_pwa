@@ -17,7 +17,7 @@ export async function GET(req) {
     // Filter by ID, not .slice(1): the Expenses tab has a blank row 3 and an "ℹ" note
     // row 4 sitting inside the data, which previously surfaced as two junk entries in
     // every admin's history.
-    const rows = await readRows(await getTab('EXPENSES'), 'A:S', /^EXP-/);
+    const rows = await readRows(await getTab('EXPENSES'), 'A:T', /^EXP-/);
 
     // Admin roles see all; everyone else sees their own only
     const isAdmin = ADMIN_ROLES.includes(role);
@@ -58,6 +58,7 @@ export async function GET(req) {
       submittedBy:    row[11] || '',
       status:         row[12] || 'pending', // admin_status column
       receiptStatus:  row[18] || '',        // col S — blank on rows predating the column
+      costType:       row[19] || '',        // col T — blank on rows predating the column
     }));
 
     return Response.json({ expenses, total, page, pageSize: PAGE_SIZE });

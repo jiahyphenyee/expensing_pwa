@@ -9,6 +9,8 @@ Unreleased section above it.
 
 ## Unreleased
 
+- The claim form asks for a Type (Material, Subcontractor, Transport), written to the new
+  Expenses column T (`cost_type`) so projects-pwa can split a job's cost; history reads it too.
 - The category → Xero "Service" tracking option map is now read from the Categories
   tab's new `xero_tracking_option` column instead of `lib/constants.js`, so this app
   and projects-pwa share one list. Fixes `AIRC` bills going to Xero untagged.

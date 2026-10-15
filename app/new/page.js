@@ -4,7 +4,10 @@
 import { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/lib/session';
-import { GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE, RECEIPT_STATUSES } from '@/lib/constants';
+import {
+  GENERAL_PROJECT, UNLINKED_PROJECT, DEFAULT_PAYEE, RECEIPT_STATUSES,
+  RECEIPTED_COST_TYPES, DEFAULT_RECEIPTED_COST_TYPE,
+} from '@/lib/constants';
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('@/app/components/PdfViewer'), { ssr: false });
@@ -53,6 +56,7 @@ function getInitialForm() {
     payeeName:        DEFAULT_PAYEE.name        || '',
     payeeType:        DEFAULT_PAYEE.type        || '',
     category:         '',
+    costType:         DEFAULT_RECEIPTED_COST_TYPE,
     description:      '',
   };
 }
@@ -134,6 +138,38 @@ function HelperPill({ label, onTap }) {
     >
       + {label}
     </button>
+  );
+}
+
+// One-of-few choice shown as joined buttons. Every option stays visible, so the default
+// is seen and changed in one tap — a dropdown would hide that "Material" was preselected.
+function ChoiceGroup({ options, value, onChange }) {
+  return (
+    <div role="radiogroup" style={{ display: 'flex', gap: 6 }}>
+      {options.map(opt => {
+        const selected = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(opt.value)}
+            style={{
+              flex: 1, minWidth: 0, padding: '11px 6px', borderRadius: 10,
+              border: `1px solid ${selected ? '#1D5C8F' : '#ddd'}`,
+              background: selected ? '#f2f7fb' : '#fff',
+              color: selected ? '#1D5C8F' : '#555',
+              fontSize: 14, fontWeight: selected ? 600 : 400,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1011,6 +1047,15 @@ export default function NewExpensePage() {
             onSelect={handleCategorySelect}
             renderOption={c => c.name}
             renderSelected={c => c.name}
+          />
+        </Field>
+
+        {/* Type — what the money paid for; splits a job's cost in projects-pwa */}
+        <Field label="Type">
+          <ChoiceGroup
+            options={RECEIPTED_COST_TYPES}
+            value={form.costType}
+            onChange={value => setField('costType', value)}
           />
         </Field>
 

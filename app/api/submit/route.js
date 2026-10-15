@@ -3,7 +3,7 @@
 import { getSheetsClient, getTab, range, safe } from '@/lib/sheets';
 import { createXeroBill } from '@/lib/xero';
 import { createCostsForExtraItems } from '@/lib/costs';
-import { RECEIPT_STATUSES } from '@/lib/constants';
+import { RECEIPT_STATUSES, RECEIPTED_COST_TYPE_VALUES } from '@/lib/constants';
 
 export async function POST(req) {
   try {
@@ -12,12 +12,17 @@ export async function POST(req) {
       date, projectCode, projectAddress,
       amount, payeeId, payeeName, payeeType,
       category, description, submittedBy,
-      extraLineItems, receiptStatus,
+      extraLineItems, receiptStatus, costType,
     } = body;
 
     // Fixed enum, not free text — anything else is discarded rather than written through.
     const receiptStatusValue =
       Object.values(RECEIPT_STATUSES).includes(receiptStatus) ? receiptStatus : '';
+
+    // Same rule: column T validates against its own dropdown, so an invented value would
+    // sit outside the sheet's list. Blank is what a form cached before this field sends.
+    const costTypeValue =
+      RECEIPTED_COST_TYPE_VALUES.includes(costType) ? costType : '';
 
     const sheets  = await getSheetsClient();
     const sheetId = process.env.GOOGLE_SHEET_ID;
@@ -87,11 +92,12 @@ export async function POST(req) {
       xeroStatus,
       xeroStatus === 'error' ? 'Xero push failed on submission' : '',
       receiptStatusValue, // S — 'attached' | 'declared_none'
+      costTypeValue,      // T — 'material' | 'labour (external)' | 'transport'
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: range(expensesTab, 'A:S'),
+      range: range(expensesTab, 'A:T'),
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [newRow] },
     });
